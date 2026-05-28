@@ -144,20 +144,21 @@ def build_market_scatter(df: pd.DataFrame, x_field: str, y_field: str, log_x: bo
         if pd.isna(x_value) or pd.isna(y_value):
             continue
         x_numeric = float(x_value)
-        rows.append(
-            {
-                "name": row.get("name", "Unknown"),
-                x_field: math.log10(x_numeric + 1) if log_x else x_numeric,
-                y_field: float(y_value),
-                "price": None if pd.isna(row.get("price")) else float(row.get("price")),
-                "positive_rate": None if pd.isna(row.get("positive_rate")) else float(row.get("positive_rate")),
-                "total_reviews": int(row.get("total_reviews", 0)) if not pd.isna(row.get("total_reviews")) else 0,
-                "price_level": row.get("price_level", "Unknown"),
-                "review_level": row.get("review_level", "Unknown"),
-                "genres": row.get("genres", ""),
-                "tags": row.get("tags", ""),
-            }
-        )
+        point = {
+            "name": row.get("name", "Unknown"),
+            x_field: x_numeric,
+            y_field: float(y_value),
+            "price": None if pd.isna(row.get("price")) else float(row.get("price")),
+            "positive_rate": None if pd.isna(row.get("positive_rate")) else float(row.get("positive_rate")),
+            "total_reviews": int(row.get("total_reviews", 0)) if not pd.isna(row.get("total_reviews")) else 0,
+            "price_level": row.get("price_level", "Unknown"),
+            "review_level": row.get("review_level", "Unknown"),
+            "genres": row.get("genres", ""),
+            "tags": row.get("tags", ""),
+        }
+        if log_x:
+            point[f"log_{x_field}"] = math.log10(x_numeric + 1)
+        rows.append(point)
     return rows
 
 

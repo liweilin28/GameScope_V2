@@ -2,6 +2,7 @@ import pandas as pd
 
 from backend.services.analyzer import (
     analyze_genre_distribution,
+    build_market_scatter,
     filter_market,
     get_basic_metrics,
 )
@@ -72,3 +73,12 @@ def test_filter_market_genre_filter_can_match_tag_only_terms():
 
     assert len(filtered) == 1
     assert filtered.iloc[0]["name"] == "Puzzle Tag Game"
+
+
+def test_build_market_scatter_keeps_raw_and_log_x_values():
+    rows = build_market_scatter(sample_cleaned_df(), "total_reviews", "positive_rate", log_x=True)
+
+    assert rows
+    assert rows[0]["total_reviews"] == 100
+    assert "log_total_reviews" in rows[0]
+    assert rows[0]["log_total_reviews"] != rows[0]["total_reviews"]

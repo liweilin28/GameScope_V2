@@ -115,6 +115,23 @@ def _normalize_profile(profile: dict) -> dict:
     return result
 
 
+def _clean_json(text: str) -> dict | None:
+    candidate = str(text or "").strip()
+    if candidate.startswith("```"):
+        candidate = re.sub(r"^```(?:json)?", "", candidate).strip()
+        candidate = re.sub(r"```$", "", candidate).strip()
+    try:
+        return json.loads(candidate)
+    except json.JSONDecodeError:
+        match = re.search(r"\{.*\}", candidate, re.S)
+        if not match:
+            return None
+        try:
+            return json.loads(match.group(0))
+        except json.JSONDecodeError:
+            return None
+
+
 def normalize_idea_profile(profile: dict | None) -> dict:
     """Normalize any LLM/user-edited idea profile to Steam-compatible English terms."""
     return _normalize_profile(profile or {})
@@ -154,10 +171,9 @@ def parse_idea(idea_text: str, prefer_llm: bool = True) -> dict:
         )
         llm = safe_call_llm(prompt, "你是游戏立项分析助手，只能输出 JSON。")
         if llm["success"]:
-            try:
-                return {**_normalize_profile(json.loads(llm["content"])), "llm_used": True}
-            except Exception:
-                pass
+            parsed = _clean_json(llm["content"])
+            if parsed:
+                return {**_normalize_profile(parsed), "llm_used": True}
     profile = _rule_parse(idea_text)
     profile["llm_used"] = False
     return profile

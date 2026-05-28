@@ -228,6 +228,10 @@ def _is_follow_up(message: str) -> bool:
     return any(marker in text for marker in follow_up_markers)
 
 
+def _has_any(text: str, keywords: list[str]) -> bool:
+    return any(keyword in text for keyword in keywords)
+
+
 def _filters_from_text(message: str, previous_filters: dict[str, Any] | None = None) -> dict[str, Any]:
     text = message.lower()
     filters = merge_filters(previous_filters, {})
@@ -329,7 +333,40 @@ def parse_with_rules(message: str, history: list[dict[str, str]], previous_inten
     if message.strip() in {"帮我分析一下 Steam 游戏", "分析一下", "看看市场", "steam游戏怎么样"}:
         return {"need_clarification": True, "clarification": deepcopy(GENERAL_CLARIFICATION), "intent": intent}
 
-    if any(key in text for key in ["价格", "price", "多少钱", "免费", "付费"]):
+    price_terms = ["价格", "price", "多少钱", "免费", "付费", "低价", "高价"]
+    review_terms = ["评论", "热度", "reviews", "popular"]
+    reception_terms = ["好评", "口碑", "positive", "评价"]
+    relation_terms = ["关系", "相关", "影响", "有关", "差异", "差别", "对比", "比较"]
+    comparison_terms = ["差异", "差别", "对比", "比较", "免费", "付费", "低价", "高价"]
+
+    has_price = _has_any(text, price_terms)
+    has_reviews = _has_any(text, review_terms)
+    has_reception = _has_any(text, reception_terms)
+    has_relation = _has_any(text, relation_terms)
+    wants_group_comparison = _has_any(text, comparison_terms)
+    price_group = "price_type" if _has_any(text, ["免费", "付费"]) else "price_level"
+
+    if has_relation and has_price and has_reception:
+        intent.update(
+            {
+                "analysis_type": "review_comparison" if wants_group_comparison else "correlation",
+                "target_metric": "positive_rate",
+                "group_by": price_group if wants_group_comparison else "none",
+                "chart_type": "bar" if wants_group_comparison else "scatter",
+            }
+        )
+    elif has_relation and has_price and has_reviews:
+        intent.update(
+            {
+                "analysis_type": "review_comparison" if wants_group_comparison else "correlation",
+                "target_metric": "total_reviews",
+                "group_by": price_group if wants_group_comparison else "none",
+                "chart_type": "bar" if wants_group_comparison else "scatter",
+            }
+        )
+    elif has_relation and has_reviews and has_reception:
+        intent.update({"analysis_type": "correlation", "target_metric": "positive_rate", "group_by": "reviews_positive", "chart_type": "scatter"})
+    elif any(key in text for key in ["价格", "price", "多少钱", "免费", "付费"]):
         intent.update({"analysis_type": "price_distribution", "target_metric": "price", "group_by": "price_level", "chart_type": "bar"})
     elif any(key in text for key in ["年份", "趋势", "近几年", "增长", "发行"]):
         intent.update({"analysis_type": "release_trend", "target_metric": "release_count", "group_by": "year", "chart_type": "line"})

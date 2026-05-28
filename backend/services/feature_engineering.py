@@ -46,6 +46,22 @@ def _review_level(value: float | int | None) -> str:
     return "Very High"
 
 
+def _to_bool(value) -> bool:
+    if pd.isna(value):
+        return False
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, (int, float)):
+        return bool(value)
+
+    text = str(value).strip().lower()
+    if text in {"true", "1", "yes", "y", "是", "真"}:
+        return True
+    if text in {"false", "0", "no", "n", "否", "假", ""}:
+        return False
+    return False
+
+
 def add_derived_features(df: pd.DataFrame) -> tuple[pd.DataFrame, dict]:
     """生成 total_reviews、positive_rate、release_year 等分析字段。"""
     output = df.copy()
@@ -104,7 +120,7 @@ def add_derived_features(df: pd.DataFrame) -> tuple[pd.DataFrame, dict]:
         )
         report["generated_fields"].append("is_indie")
     else:
-        output["is_indie"] = output["is_indie"].astype(bool)
+        output["is_indie"] = output["is_indie"].map(_to_bool)
 
     if "price_level" not in output.columns:
         output["price_level"] = output["price"].map(_price_level)

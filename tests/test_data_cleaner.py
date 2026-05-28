@@ -47,6 +47,24 @@ def test_cleaner_generates_indie_price_and_review_levels():
     assert list(cleaned["review_level"]) == ["Low", "Medium", "High", "Very High"]
 
 
+def test_cleaner_parses_existing_is_indie_strings():
+    raw = pd.DataFrame(
+        {
+            "name": ["Not Indie", "Indie"],
+            "price": [9.99, 9.99],
+            "genres": ["Action", "Action"],
+            "tags": ["Shooter", "Indie"],
+            "positive_reviews": [10, 10],
+            "negative_reviews": [0, 0],
+            "is_indie": ["False", "True"],
+        }
+    )
+
+    cleaned, _ = clean_steam_data(raw)
+
+    assert list(cleaned["is_indie"]) == [False, True]
+
+
 def test_cleaner_drops_missing_name_and_duplicates():
     raw = pd.DataFrame(
         {

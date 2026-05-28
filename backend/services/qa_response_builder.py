@@ -190,13 +190,16 @@ def build_answer(intent: dict[str, Any], analysis: dict[str, Any]) -> dict[str, 
         "release_trend": "以下结论基于当前加载的数据集计算，仅作为数据分析参考。发行趋势按年份聚合，可用于观察该市场近年的供给变化。",
         "genre_distribution": "以下结论基于当前加载的数据集计算，仅作为数据分析参考。类型分布展示当前样本中出现频率最高的游戏类型。",
         "tag_frequency": "以下结论基于当前加载的数据集计算，仅作为数据分析参考。标签频率可用于理解玩家和开发者常用的市场定位关键词。",
-        "review_comparison": "以下结论基于当前加载的数据集计算，仅作为数据分析参考。不同分组的好评率对比可辅助观察口碑差异。",
         "segment_analysis": "以下结论基于当前加载的数据集计算，仅作为数据分析参考。细分市场结果展示样本规模、基础指标和头部竞品。",
         "market_pressure": f"以下结论基于当前加载的数据集计算，仅作为数据分析参考。当前判断为：{analysis.get('pressure_text', '暂无判断')}。",
         "ranking": "以下结论基于当前加载的数据集计算，仅作为数据分析参考。排行榜仅代表当前数据集中的排序结果。",
         "correlation": "以下结论基于当前加载的数据集计算，仅作为数据分析参考。相关关系图只表示样本观察，不代表因果关系。",
     }
-    summary = summary_map.get(analysis_type, "以下结论基于当前加载的数据集计算，仅作为数据分析参考。")
+    if analysis_type == "review_comparison":
+        metric_name = "评论数" if analysis.get("target_metric") == "total_reviews" else "好评率"
+        summary = f"以下结论基于当前加载的数据集计算，仅作为数据分析参考。不同分组的{metric_name}对比可辅助观察当前样本中的差异。"
+    else:
+        summary = summary_map.get(analysis_type, "以下结论基于当前加载的数据集计算，仅作为数据分析参考。")
 
     echarts_option = None
     chart_rows = rows

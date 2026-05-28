@@ -33,9 +33,22 @@ def _read_csv_bytes(content: bytes) -> pd.DataFrame:
     raise ValueError("无法读取 CSV 文件。")
 
 
-def _prepare_data(df: pd.DataFrame, source_name: str) -> tuple[pd.DataFrame, dict]:
+def _cleaning_failure_message(report: dict, cleaned: pd.DataFrame) -> str:
+    errors = report.get("errors", []) if isinstance(report, dict) else []
+    if errors:
+        return "数据清洗失败：" + "；".join(str(item) for item in errors)
+    if cleaned.empty:
+        return "数据清洗后没有可用行，请检查 name 字段和数据内容。"
+    return ""
+
+
+def _prepare_data(df: pd.DataFrame, source_name: str) -> tuple[pd.DataFrame | None, dict]:
     raw, _ = standardize_columns(df)
     cleaned, report = clean_steam_data(raw)
+    failure_message = _cleaning_failure_message(report, cleaned)
+    if failure_message:
+        report["message"] = failure_message
+        return None, report
     set_current_data(cleaned, source_name, raw_df=raw, cleaning_report=report)
     return cleaned, report
 
@@ -51,6 +64,12 @@ def load_default_data() -> tuple[pd.DataFrame | None, dict]:
     try:
         raw_df = pd.read_csv(SAMPLE_DATA_PATH, low_memory=False)
         cleaned, report = _prepare_data(raw_df, "sample_steam_games.csv")
+        if cleaned is None:
+            return None, {
+                "success": False,
+                "message": report.get("message", "默认数据清洗后不可用。"),
+                "cleaning_report": report,
+            }
         return cleaned, {"success": True, "message": "默认数据加载成功。", "cleaning_report": report}
     except Exception as exc:
         return None, {"success": False, "message": f"默认数据读取失败：{exc}"}
@@ -65,6 +84,12 @@ def load_uploaded_data(file: BinaryIO | bytes, source_name: str = "uploaded.csv"
             content = file.read()
         raw_df = _read_csv_bytes(content)
         cleaned, report = _prepare_data(raw_df, source_name)
+        if cleaned is None:
+            return None, {
+                "success": False,
+                "message": report.get("message", "上传数据清洗后不可用。"),
+                "cleaning_report": report,
+            }
         return cleaned, {"success": True, "message": "上传数据加载成功。", "cleaning_report": report}
     except Exception as exc:
         return None, {"success": False, "message": f"上传 CSV 读取失败：{exc}"}

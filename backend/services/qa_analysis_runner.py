@@ -46,6 +46,14 @@ def _mean_median_by_group(df: pd.DataFrame, group_column: str, value_column: str
     ]
 
 
+def _with_price_type(df: pd.DataFrame) -> pd.DataFrame:
+    working = df.copy()
+    if "price" in working.columns:
+        prices = pd.to_numeric(working["price"], errors="coerce")
+        working["price_type"] = prices.map(lambda value: "Unknown" if pd.isna(value) else ("Free" if value == 0 else "Paid"))
+    return working
+
+
 def _top_rows(df: pd.DataFrame, metric: str, n: int = 10) -> list[dict[str, Any]]:
     if df.empty or metric not in df.columns:
         return []
@@ -135,9 +143,19 @@ def run_analysis(df: pd.DataFrame, intent: dict[str, Any]) -> dict[str, Any]:
             }
         )
     elif analysis_type == "review_comparison":
+        value_column = "total_reviews" if target_metric == "total_reviews" else "positive_rate"
         group_column = "price_level" if group_by in {"none", "price_level"} else group_by
-        rows = _mean_median_by_group(segment, group_column, "positive_rate")
-        result.update({"rows": rows, "x_key": "group", "y_key": "avg_value", "chart_title": "不同分组平均好评率"})
+        working = _with_price_type(segment) if group_column == "price_type" else segment
+        rows = _mean_median_by_group(working, group_column, value_column)
+        metric_label = "评论数" if value_column == "total_reviews" else "好评率"
+        result.update(
+            {
+                "rows": rows,
+                "x_key": "group",
+                "y_key": "avg_value",
+                "chart_title": f"不同分组平均{metric_label}",
+            }
+        )
     elif analysis_type == "segment_analysis":
         top = _top_rows(segment, "total_reviews", 10)
         result.update(
@@ -179,7 +197,15 @@ def run_analysis(df: pd.DataFrame, intent: dict[str, Any]) -> dict[str, Any]:
     elif analysis_type == "correlation":
         columns = [c for c in ["name", "price", "total_reviews", "positive_rate"] if c in segment.columns]
         rows = dataframe_to_records(segment[columns].head(100), limit=100) if columns else []
-        result.update({"rows": rows, "x_key": "price", "y_key": "total_reviews", "chart_title": "价格与评论数关系"})
+        if group_by == "reviews_positive":
+            x_key = "total_reviews"
+            y_key = "positive_rate"
+            chart_title = "评论数与好评率关系"
+        else:
+            x_key = "price"
+            y_key = "positive_rate" if target_metric == "positive_rate" else "total_reviews"
+            chart_title = "价格与好评率关系" if y_key == "positive_rate" else "价格与评论数关系"
+        result.update({"rows": rows, "x_key": x_key, "y_key": y_key, "chart_title": chart_title})
     else:
         result.update({"rows": [metrics], "chart_title": "基础指标概览"})
 

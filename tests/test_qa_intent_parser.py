@@ -73,3 +73,30 @@ def test_rule_parser_hot_tags_uses_tag_frequency():
     assert result["need_clarification"] is False
     assert result["intent"]["analysis_type"] == "tag_frequency"
     assert result["intent"]["group_by"] == "tag"
+
+
+def test_rule_parser_price_reception_comparison_is_not_price_distribution():
+    result = parse_with_rules("低价格游戏和高价格游戏的口碑有差异吗？", [], DEFAULT_INTENT)
+
+    assert result["need_clarification"] is False
+    assert result["intent"]["analysis_type"] == "review_comparison"
+    assert result["intent"]["target_metric"] == "positive_rate"
+    assert result["intent"]["group_by"] == "price_level"
+
+
+def test_rule_parser_free_paid_review_count_comparison():
+    result = parse_with_rules("免费游戏和付费游戏的评论数量差异大吗？", [], DEFAULT_INTENT)
+
+    assert result["need_clarification"] is False
+    assert result["intent"]["analysis_type"] == "review_comparison"
+    assert result["intent"]["target_metric"] == "total_reviews"
+    assert result["intent"]["group_by"] == "price_type"
+
+
+def test_rule_parser_price_review_relationship_uses_correlation():
+    result = parse_with_rules("价格和评论数有关系吗？", [], DEFAULT_INTENT)
+
+    assert result["need_clarification"] is False
+    assert result["intent"]["analysis_type"] == "correlation"
+    assert result["intent"]["target_metric"] == "total_reviews"
+    assert result["intent"]["chart_type"] == "scatter"

@@ -1,5 +1,6 @@
 import pandas as pd
 
+import backend.services.idea_parser as idea_parser
 from backend.services.competitor_radar import find_similar_games
 from backend.services import analyzer
 from backend.services.data_cleaner import clean_steam_data
@@ -52,6 +53,23 @@ def test_idea_profile_normalizes_chinese_terms_to_steam_english():
     assert "Relaxing" in profile["target_tags"]
     assert "Atmospheric" in profile["target_tags"]
     assert "Pixel Graphics" in profile["target_tags"]
+
+
+def test_idea_parser_accepts_fenced_llm_json(monkeypatch):
+    def fake_call_llm(prompt, system_prompt=None):
+        return {
+            "success": True,
+            "content": '```json\n{"target_genres":["独立"],"target_tags":["剧情向"],"price_range":[0,15]}\n```',
+        }
+
+    monkeypatch.setattr(idea_parser, "safe_call_llm", fake_call_llm)
+
+    profile = parse_idea("一款剧情向独立游戏", prefer_llm=True)
+
+    assert profile["target_genres"] == ["Indie"]
+    assert profile["target_tags"] == ["Story Rich"]
+    assert profile["price_range"] == [0, 15]
+    assert profile["llm_used"] is True
 
 
 def test_find_similar_games_returns_reasonable_scores():

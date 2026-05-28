@@ -73,3 +73,23 @@ def test_correlation_analysis_tolerates_missing_columns():
 
     assert result["empty"] is False
     assert isinstance(result["rows"], list)
+
+
+def test_review_comparison_can_compare_free_paid_review_counts():
+    result = run_analysis(
+        cleaned_df(),
+        {
+            "analysis_type": "review_comparison",
+            "target_metric": "total_reviews",
+            "filters": {"market_scope": "all"},
+            "group_by": "price_type",
+            "chart_type": "bar",
+        },
+    )
+
+    groups = {row["group"]: row for row in result["rows"]}
+
+    assert result["empty"] is False
+    assert result["y_key"] == "avg_value"
+    assert result["chart_title"] == "不同分组平均评论数"
+    assert {"Free", "Paid"}.issubset(groups)
