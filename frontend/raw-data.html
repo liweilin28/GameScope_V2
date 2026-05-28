@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>原始 CSV 数据｜GameScope</title>
+    <link rel="stylesheet" href="/static/css/style.css?v=20260527" />
+    <link rel="stylesheet" href="/static/css/components.css?v=20260527" />
+    <style>
+      body { padding: 28px; }
+      .raw-page { display: grid; gap: 18px; }
+    </style>
+  </head>
+  <body>
+    <main class="raw-page">
+      <div class="page-head">
+        <div>
+          <p class="eyebrow">Raw CSV</p>
+          <h2>当前原始 CSV 数据</h2>
+          <p>这里展示当前加载数据源的完整原始表格，用于核对 Data Q&A 结论的数据来源。</p>
+        </div>
+      </div>
+      <div id="raw-summary" class="metrics-grid"></div>
+      <article class="card">
+        <div id="raw-table"></div>
+      </article>
+    </main>
+    <script type="module" src="/static/js/rawData.js?v=20260527"></script>
+  </body>
+</html>
