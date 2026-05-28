@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>GameScope｜Steam 市场智能分析</title>
+    <link rel="stylesheet" href="/static/css/style.css?v=20260528focus1" />
+    <link rel="stylesheet" href="/static/css/components.css?v=20260528focus1" />
+    <link rel="stylesheet" href="/static/css/responsive.css?v=20260528focus1" />
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar">
+        <div class="brand">
+          <div class="brand-mark">G</div>
+          <div>
+            <strong>GameScope</strong>
+            <span>市场智能分析</span>
+          </div>
+        </div>
+
+        <nav class="nav-list" aria-label="主导航">
+          <button class="nav-item active" data-page="home">首页</button>
+          <button class="nav-item" data-page="dataPipeline">数据读取与清洗</button>
+          <button class="nav-item" data-page="dashboard">市场总览</button>
+          <button class="nav-item" data-page="explorer">可视化探索</button>
+          <button class="nav-item" data-page="qa">智能问数</button>
+          <button class="nav-item" data-page="ideaLab">立项实验室</button>
+        </nav>
+
+        <div class="sidebar-footer">
+          <span class="status-dot"></span>
+          <span id="sidebar-status">正在检查后端...</span>
+        </div>
+      </aside>
+
+      <div class="content-shell">
+        <header class="topbar">
+          <div>
+            <p class="eyebrow">高级 Python 期末项目</p>
+            <h1 id="page-title">首页</h1>
+          </div>
+          <div class="topbar-actions">
+            <span class="pill" id="llm-status">LLM 状态</span>
+            <button class="ghost-button" id="refresh-status">刷新</button>
+          </div>
+        </header>
+
+        <main id="app" class="main-content"></main>
+      </div>
+    </div>
+
+    <div id="toast-root" class="toast-root" aria-live="polite"></div>
+    <div id="loading" class="loading hidden">
+      <div class="loading-card">
+        <span class="spinner"></span>
+        <span>加载中...</span>
+      </div>
+    </div>
+    <div id="modal-root" class="modal-root hidden" role="dialog" aria-modal="true"></div>
+
+    <script>
+      async function refreshHeaderStatusDirectly() {
+        const statusText = document.querySelector("#sidebar-status");
+        const statusDot = document.querySelector(".status-dot");
+        const llmNode = document.querySelector("#llm-status");
+        try {
+          const [healthRes, llmRes] = await Promise.all([
+            fetch("/api/system/health", { cache: "no-store" }),
+            fetch("/api/system/llm-status", { cache: "no-store" }),
+          ]);
+          const health = await healthRes.json();
+          const llm = await llmRes.json();
+          if (!health.success || !llm.success) throw new Error("状态接口返回失败");
+          statusDot?.classList.add("online");
+          if (statusText) statusText.textContent = health.data?.status === "running" ? "后端已连接" : "后端状态异常";
+          if (llmNode) {
+            llmNode.textContent = llm.data?.enabled ? "LLM 已启用" : "规则模式";
+            llmNode.classList.toggle("success", Boolean(llm.data?.enabled));
+            llmNode.classList.toggle("warning", !llm.data?.enabled);
+          }
+        } catch (error) {
+          statusDot?.classList.remove("online");
+          if (statusText) statusText.textContent = "后端未连接";
+          if (llmNode) llmNode.textContent = "LLM 状态";
+        }
+      }
+      window.addEventListener("DOMContentLoaded", refreshHeaderStatusDirectly);
+    </script>
+    <script type="module" src="/static/js/main.js?v=20260528focus1"></script>
+  </body>
+</html>
