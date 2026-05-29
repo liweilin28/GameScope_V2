@@ -1,12 +1,12 @@
-import { api } from "./api.js";
-import { state, pages } from "./state.js";
-import { showToast, setLoading } from "./utils.js";
-import { renderHome } from "./pages/home.js";
-import { initDataPipelinePage, renderDataPipeline } from "./pages/dataPipeline.js";
-import { initDashboardPage, renderDashboard } from "./pages/dashboard.js";
-import { initExplorerPage, renderExplorer } from "./pages/explorer.js";
-import { initQaPage, renderQa } from "./pages/qa.js";
-import { initIdeaLabPage, renderIdeaLab } from "./pages/ideaLab.js";
+import { api } from "./api.js?v=20260528qa2";
+import { state, pages } from "./state.js?v=20260528qa2";
+import { showToast, setLoading } from "./utils.js?v=20260528qa2";
+import { renderHome } from "./pages/home.js?v=20260528qa2";
+import { initDataPipelinePage, renderDataPipeline } from "./pages/dataPipeline.js?v=20260528qa2";
+import { initDashboardPage, renderDashboard } from "./pages/dashboard.js?v=20260528qa2";
+import { initExplorerPage, renderExplorer } from "./pages/explorer.js?v=20260528qa2";
+import { initQaPage, renderQa } from "./pages/qa.js?v=20260528qa2";
+import { initIdeaLabPage, renderIdeaLab } from "./pages/ideaLab.js?v=20260528qa2";
 
 const renderers = {
   home: renderHome,

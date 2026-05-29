@@ -100,3 +100,19 @@ def test_rule_parser_price_review_relationship_uses_correlation():
     assert result["intent"]["analysis_type"] == "correlation"
     assert result["intent"]["target_metric"] == "total_reviews"
     assert result["intent"]["chart_type"] == "scatter"
+
+
+def test_rule_parser_why_follow_up_uses_explanation_mode():
+    previous = {
+        "analysis_type": "price_distribution",
+        "target_metric": "price",
+        "filters": {"market_scope": "indie", "genres": ["Indie"]},
+        "group_by": "price_level",
+        "chart_type": "bar",
+    }
+    result = parse_with_rules("为什么会这样？", [], previous)
+
+    assert result["need_clarification"] is False
+    assert result["intent"]["analysis_type"] == "price_distribution"
+    assert result["intent"]["answer_mode"] == "explanation"
+    assert result["intent"]["chart_type"] == "none"

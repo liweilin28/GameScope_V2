@@ -5,7 +5,10 @@
 
 from __future__ import annotations
 
+import json
 from typing import Any
+
+from backend.services.llm_client import safe_call_llm
 
 
 def _fmt_number(value: Any, digits: int = 2) -> str:
@@ -84,6 +87,104 @@ def _support_table(title: str, rows: list[dict[str, Any]], columns: list[str] | 
         "columns": columns or (list(visible[0].keys()) if visible else []),
         "rows": visible,
     }
+
+
+def _compact_rows(rows: list[dict[str, Any]], limit: int = 12) -> list[dict[str, Any]]:
+    compact = []
+    for row in (rows or [])[:limit]:
+        compact.append(
+            {
+                key: value
+                for key, value in row.items()
+                if key in {"name", "group", "price_level", "year", "genre", "tag", "count", "avg_value", "median_value", "price", "positive_rate", "total_reviews"}
+            }
+        )
+    return compact
+
+
+def _fallback_explanation(intent: dict[str, Any], analysis: dict[str, Any]) -> str:
+    metrics = analysis.get("metrics", {}) or {}
+    rows = analysis.get("rows", []) or []
+    analysis_type = analysis.get("analysis_type", "unknown")
+    sample_size = int(analysis.get("segment_count") or metrics.get("game_count") or 0)
+
+    if analysis_type == "price_distribution" and rows:
+        top = max(rows, key=lambda row: row.get("count") or 0)
+        return (
+            f"这主要和当前样本的价格层级集中有关。筛选后共有 {sample_size} 个样本，"
+            f"其中 {top.get('price_level')} 区间数量最高，因此整体结果会向这个价格段倾斜。\n\n"
+            "从立项角度看，这通常说明同类游戏更依赖低门槛购买或小体量内容包装；但仍需要结合题材、美术成本和评论质量继续判断。\n\n"
+            "这只是基于当前筛选样本结构的解释，换到别的类型或市场范围，结论可能变化。"
+        )
+    if analysis_type == "release_trend" and len(rows) >= 2:
+        first, last = rows[0], rows[-1]
+        direction = "上升" if (last.get("count") or 0) > (first.get("count") or 0) else "回落或趋稳"
+        return (
+            f"这个变化主要来自年度供给量的{direction}。当前筛选样本从 {first.get('year')} 年到 {last.get('year')} 年的数量变化，"
+            "反映的是开发者进入该细分方向的活跃程度，而不一定等同于玩家需求同步变化。\n\n"
+            "如果近两年的数量明显高于更早年份，通常说明这个方向的供给在变多；如果差距不大，更像是市场趋稳。\n\n"
+            "这只是基于当前样本的年度分布解释，不代表完整市场。"
+        )
+    if analysis_type in {"genre_distribution", "tag_frequency"} and rows:
+        label_key = "genre" if analysis_type == "genre_distribution" else "tag"
+        top = rows[0]
+        return (
+            f"结果会集中在 {top.get(label_key)}，主要因为这个关键词在当前筛选样本中出现最多。\n\n"
+            "这通常意味着数据里的游戏更常用这一定位来描述玩法或卖点，也可能说明该方向已经形成比较固定的市场表达。\n\n"
+            "这只是基于当前样本频次的解释，不代表所有 Steam 游戏都如此。"
+        )
+    if analysis_type == "market_pressure":
+        return (
+            f"当前结论是 {analysis.get('pressure_text', '暂无判断')}。原因主要来自样本规模、头部游戏评论数集中度和当前筛选条件下的竞品密度。\n\n"
+            "如果头部少数游戏吸走了大量评论，后进入者通常需要更明确的差异化卖点。\n\n"
+            "这只是基于当前筛选条件下的竞争结构解释。"
+        )
+    if analysis_type == "review_comparison" and rows:
+        return (
+            "差异主要来自不同分组的平均值和中位数不一致。这里更适合把它理解成样本结构差异："
+            "不同价格层或免费/付费组里的游戏体量、曝光机会和玩家预期不同，所以口碑或评论数可能出现分化。\n\n"
+            "换句话说，这里反映的是分组后的样本差异，不一定说明某一个因素单独造成了结果。\n\n"
+            "这只是当前样本中的观察，不代表因果关系。"
+        )
+    if analysis_type == "correlation":
+        return (
+            "这个关系只能解释为当前样本中的共同变化，不能直接视为因果。\n\n"
+            "价格、评论数和好评率往往同时受到题材热度、曝光量、内容体量和玩家预期影响，所以它们可能一起变化。\n\n"
+            "这只是样本层面的相关观察，不代表单一因果。"
+        )
+    return (
+        f"当前解释基于筛选后的 {sample_size} 个样本。结果更可能来自样本结构、头部作品影响、价格区间和类型/标签组合的共同作用，"
+        "建议继续换一个筛选条件验证这个判断是否稳定。\n\n"
+        "如果你把年份、价格或类型条件换掉，结果可能会跟着变化。\n\n"
+        "这只是当前样本下的解释。"
+    )
+
+
+def _build_explanation(intent: dict[str, Any], analysis: dict[str, Any]) -> tuple[str, bool]:
+    payload = {
+        "analysis_type": analysis.get("analysis_type"),
+        "target_metric": analysis.get("target_metric") or intent.get("target_metric"),
+        "group_by": analysis.get("group_by") or intent.get("group_by"),
+        "filters": analysis.get("filters", {}),
+        "segment_count": analysis.get("segment_count", 0),
+        "metrics": analysis.get("metrics", {}),
+        "rows": _compact_rows(analysis.get("rows", [])),
+        "pressure_text": analysis.get("pressure_text"),
+        "competition_concentration": analysis.get("competition_concentration"),
+    }
+    prompt = (
+        "请基于下面 JSON 数据解释用户追问“为什么会这样”。"
+        "只能使用 JSON 中的数据和字段含义，不要编造外部事实。"
+        "不要使用 Steam 市场常识或经验判断来替代数据依据；如果只能推测，请明确说这是基于当前样本结构的推断。"
+        "不要输出表格、图表、排行榜或原始数据清单；可以引用少量关键数值作为证据。"
+        "请直接输出中文纯文本，不要使用 Markdown 标记，不要写 ###、**、-、1. 这些格式符号。"
+        "请分成 3 段：第一段写核心原因，第二段写 2-3 句原因解释，第三段写一句数据边界。\n"
+        f"{json.dumps(payload, ensure_ascii=False, default=str)}"
+    )
+    llm = safe_call_llm(prompt, "你是 GameScope 的数据解释助手，只解释后端 pandas 计算结果，不生成新统计。")
+    if llm["success"] and llm["content"]:
+        return llm["content"].strip(), True
+    return _fallback_explanation(intent, analysis), False
 
 
 def _build_support_data(intent: dict[str, Any], analysis: dict[str, Any]) -> dict[str, Any]:
@@ -166,6 +267,23 @@ def build_answer(intent: dict[str, Any], analysis: dict[str, Any]) -> dict[str, 
     metrics = analysis.get("metrics", {})
     rows = analysis.get("rows", [])
     analysis_type = analysis.get("analysis_type")
+    if intent.get("answer_mode") == "explanation":
+        explanation, llm_used = _build_explanation(intent, analysis)
+        return {
+            "summary": explanation,
+            "display_mode": "explanation",
+            "llm_used": llm_used,
+            "key_metrics": [],
+            "chart": None,
+            "table": {"columns": [], "rows": []},
+            "support_data": None,
+            "follow_up_suggestions": [
+                "换一个筛选条件再解释",
+                "给我看具体图表",
+                "继续只看 Indie 游戏",
+            ],
+        }
+
     chart_type = intent.get("chart_type", "bar")
     x_key = analysis.get("x_key")
     y_key = analysis.get("y_key")

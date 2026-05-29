@@ -222,6 +222,12 @@ def _is_follow_up(message: str) -> bool:
         "改成",
         "限定",
         "筛选",
+        "为什么",
+        "为何",
+        "原因",
+        "解释",
+        "背后",
+        "怎么会",
         "after",
         "only",
     ]
@@ -230,6 +236,10 @@ def _is_follow_up(message: str) -> bool:
 
 def _has_any(text: str, keywords: list[str]) -> bool:
     return any(keyword in text for keyword in keywords)
+
+
+def _is_reasoning_request(text: str) -> bool:
+    return any(keyword in text for keyword in ["为什么", "为何", "原因", "解释", "背后", "怎么会", "说明什么"])
 
 
 def _filters_from_text(message: str, previous_filters: dict[str, Any] | None = None) -> dict[str, Any]:
@@ -307,7 +317,12 @@ def parse_with_rules(message: str, history: list[dict[str, str]], previous_inten
             intent["filters"]["market_scope"] = "all"
         return {"need_clarification": False, "clarification": None, "intent": intent}
 
-    if any(key in text for key in ["为什么", "靠谱吗", "用图表", "列出", "前 10", "top"]) and intent["analysis_type"] != "unknown":
+    if _is_reasoning_request(text) and intent["analysis_type"] != "unknown" and previous_analysis != "unknown":
+        intent["answer_mode"] = "explanation"
+        intent["chart_type"] = "none"
+        return {"need_clarification": False, "clarification": None, "intent": intent}
+
+    if any(key in text for key in ["靠谱吗", "用图表", "列出", "前 10", "top"]) and intent["analysis_type"] != "unknown":
         if any(key in text for key in ["列出", "前 10", "top"]):
             intent.update({"analysis_type": "ranking", "target_metric": intent.get("target_metric") or "total_reviews", "chart_type": "bar"})
         return {"need_clarification": False, "clarification": None, "intent": intent}

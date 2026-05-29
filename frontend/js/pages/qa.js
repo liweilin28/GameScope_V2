@@ -1,7 +1,7 @@
-import { chatQa, getLlmStatus } from "../api.js";
-import { renderEchartsOption } from "../charts.js";
-import { renderSupportDataToggle, setupSupportDataToggles } from "../supportData.js";
-import { escapeHtml, renderTableFromPayload } from "../utils.js";
+import { chatQa, getLlmStatus } from "../api.js?v=20260528qa2";
+import { renderEchartsOption } from "../charts.js?v=20260528qa2";
+import { renderSupportDataToggle, setupSupportDataToggles } from "../supportData.js?v=20260528qa2";
+import { escapeHtml, renderPlainText, renderTableFromPayload } from "../utils.js?v=20260528qa2";
 
 const examples = [
   "Indie 游戏的价格主要集中在哪些区间？",
@@ -130,22 +130,32 @@ function appendFinalAnswer(data) {
   const answer = data.answer || {};
   const chartId = `qa-agent-chart-${qaState.chartIndex++}`;
   const hasChart = answer.chart?.echarts_option;
+  const isExplanation = answer.display_mode === "explanation";
+  const summaryHtml = isExplanation
+    ? `<div class="plain-text-body">${renderPlainText(answer.summary || data.assistant_message)}</div>`
+    : `<p>${escapeHtml(answer.summary || data.assistant_message)}</p>`;
   const node = document.createElement("div");
   node.className = "chat-message assistant";
   node.innerHTML = `
-    <div class="chat-bubble result-bubble">
-      <p>${escapeHtml(answer.summary || data.assistant_message)}</p>
-      ${metricCards(answer.key_metrics)}
+    <div class="chat-bubble result-bubble${isExplanation ? " explanation-bubble" : ""}">
+      ${summaryHtml}
       ${
-        hasChart
-          ? `<article class="chart-card qa-result-chart"><div id="${chartId}" class="chart"></div></article>`
-          : `<div class="empty-state">暂无可视化数据。</div>`
+        isExplanation
+          ? ""
+          : `
+            ${metricCards(answer.key_metrics)}
+            ${
+              hasChart
+                ? `<article class="chart-card qa-result-chart"><div id="${chartId}" class="chart"></div></article>`
+                : `<div class="empty-state">暂无可视化数据。</div>`
+            }
+            <article class="card qa-result-table">
+              <h3>结果表格</h3>
+              ${renderTableFromPayload(answer.table, { limit: 20 })}
+              ${renderSupportDataToggle(answer.support_data, { label: "查看支撑数据", closeLabel: "收起支撑数据" })}
+            </article>
+          `
       }
-      <article class="card qa-result-table">
-        <h3>结果表格</h3>
-        ${renderTableFromPayload(answer.table, { limit: 20 })}
-        ${renderSupportDataToggle(answer.support_data, { label: "查看支撑数据", closeLabel: "收起支撑数据" })}
-      </article>
       <div class="follow-up-box">
         <span>你可以继续问：</span>
         ${(answer.follow_up_suggestions || [])

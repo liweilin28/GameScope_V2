@@ -31,13 +31,16 @@ def identify_intent(question: str) -> str:
 
 def _standard_intent(intent: dict[str, Any]) -> dict[str, Any]:
     filters = normalize_filters(intent.get("filters"))
-    return {
+    standard = {
         "analysis_type": intent.get("analysis_type", "unknown"),
         "target_metric": intent.get("target_metric", "unknown"),
         "filters": filters,
         "group_by": intent.get("group_by", "none"),
         "chart_type": intent.get("chart_type", "none"),
     }
+    if intent.get("answer_mode"):
+        standard["answer_mode"] = intent.get("answer_mode")
+    return standard
 
 
 def _response(
@@ -92,39 +95,36 @@ def chat(
         analysis = run_analysis(df, intent)
         answer = build_answer(intent, analysis)
         raw_df = get_current_raw_data()
-        support_data = answer.get("support_data") or {"summary": {}, "tables": [], "notes": []}
-        support_data["raw_csv"] = {
-            "rows": int(len(raw_df)) if raw_df is not None else 0,
-            "columns": list(raw_df.columns) if raw_df is not None else [],
-            "view_url": "/raw-data.html",
-        }
-        support_data["summary"] = {
-            **(support_data.get("summary") or {}),
-            "segment_count": analysis.get("segment_count", 0),
-            "filters": analysis.get("filters", {}),
-        }
-        filtered_preview = analysis.get("filtered_preview") or []
-        if filtered_preview:
-            support_data.setdefault("tables", []).insert(
-                0,
-                {
-                    "title": "筛选后样本预览",
-                    "columns": list(filtered_preview[0].keys()),
-                    "rows": filtered_preview,
-                },
-            )
-        support_data["notes"] = [
-            "本区域优先展示本次筛选后的样本和后端 pandas 分析结果。",
-            "点击“查看全部原始 CSV”会打开新页面展示完整当前原始数据。",
-            *([note for note in support_data.get("notes", []) if "本区域" not in note and "LLM" in note] or []),
-        ]
-        answer["support_data"] = support_data
-        if "raw_csv" not in answer["support_data"]:
-            answer["support_data"]["raw_csv"] = {
+        if answer.get("display_mode") == "explanation":
+            answer["support_data"] = None
+        else:
+            support_data = answer.get("support_data") or {"summary": {}, "tables": [], "notes": []}
+            support_data["raw_csv"] = {
                 "rows": int(len(raw_df)) if raw_df is not None else 0,
                 "columns": list(raw_df.columns) if raw_df is not None else [],
                 "view_url": "/raw-data.html",
             }
+            support_data["summary"] = {
+                **(support_data.get("summary") or {}),
+                "segment_count": analysis.get("segment_count", 0),
+                "filters": analysis.get("filters", {}),
+            }
+            filtered_preview = analysis.get("filtered_preview") or []
+            if filtered_preview:
+                support_data.setdefault("tables", []).insert(
+                    0,
+                    {
+                        "title": "筛选后样本预览",
+                        "columns": list(filtered_preview[0].keys()),
+                        "rows": filtered_preview,
+                    },
+                )
+            support_data["notes"] = [
+                "本区域优先展示本次筛选后的样本和后端 pandas 分析结果。",
+                "点击“查看全部原始 CSV”会打开新页面展示完整当前原始数据。",
+                *([note for note in support_data.get("notes", []) if "本区域" not in note and "LLM" in note] or []),
+            ]
+            answer["support_data"] = support_data
         assistant_message = answer["summary"]
         update_context(cid, intent)
         add_message(cid, "assistant", assistant_message)

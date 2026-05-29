@@ -10,6 +10,18 @@ from collections import Counter
 from backend.services.llm_client import safe_call_llm
 
 
+def _strip_markdown_fence(text: str) -> str:
+    content = str(text or "").strip()
+    if content.startswith("```"):
+        lines = content.splitlines()
+        if lines and lines[0].strip().startswith("```"):
+            lines = lines[1:]
+        if lines and lines[-1].strip() == "```":
+            lines = lines[:-1]
+        return "\n".join(lines).strip()
+    return content
+
+
 def generate_differentiation_cards(idea_profile: dict, competitors: list[dict], opportunity_score: dict) -> list[dict]:
     """根据创意画像、竞品标签和机会评分生成四类差异化建议。"""
     tag_counter = Counter()
@@ -81,9 +93,11 @@ def generate_project_brief(analysis_result: dict, use_llm: bool = True) -> tuple
 """
     if use_llm:
         llm = safe_call_llm(
-            f"请只基于以下报告改写成更清晰的中文项目简报，不要新增数据：\n{brief}",
-            "你是游戏市场分析报告编辑，只能改写给定内容。",
+            "请只基于以下报告改写成更清晰的中文 Project Brief，不要新增数据。"
+            "输出标准 Markdown：保留 ## 二级标题，使用短段落和无序列表，不要包裹代码块。\n"
+            f"{brief}",
+            "你是游戏市场分析报告编辑，只能改写给定内容，并且必须输出 Markdown。",
         )
         if llm["success"] and llm["content"]:
-            return llm["content"], True
+            return _strip_markdown_fence(llm["content"]), True
     return brief, False

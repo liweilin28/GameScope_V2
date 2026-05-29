@@ -3,6 +3,7 @@ import pandas as pd
 from backend.services.data_cleaner import clean_steam_data
 from backend.services.qa_conversation import clear_conversations
 from backend.services.qa_engine import answer_question, chat, identify_intent
+import backend.services.qa_response_builder as qa_response_builder
 
 
 def cleaned_df():
@@ -93,3 +94,25 @@ def test_new_question_does_not_inherit_empty_segment_filters():
     assert "没有足够数据" not in second["assistant_message"]
     assert second["understood_intent"]["analysis_type"] == "ranking"
     assert second["understood_intent"]["filters"]["tags"] == []
+
+
+def test_chat_why_follow_up_returns_explanation_without_chart_or_table(monkeypatch):
+    def fake_call_llm(prompt, system_prompt=None):
+        return {
+            "success": True,
+            "llm_used": True,
+            "content": "核心原因是当前样本价格集中在低门槛区间。\n- 数据显示该区间数量更高，因此结果会向它倾斜。",
+        }
+
+    monkeypatch.setattr(qa_response_builder, "safe_call_llm", fake_call_llm)
+    clear_conversations()
+    first = chat(cleaned_df(), "Indie 游戏价格主要集中在哪？")
+    second = chat(cleaned_df(), "为什么会这样？", conversation_id=first["conversation_id"])
+
+    assert second["response_type"] == "final_answer"
+    assert second["understood_intent"]["answer_mode"] == "explanation"
+    assert second["answer"]["display_mode"] == "explanation"
+    assert second["answer"]["llm_used"] is True
+    assert second["answer"]["chart"] is None
+    assert second["answer"]["table"]["rows"] == []
+    assert second["answer"]["support_data"] is None

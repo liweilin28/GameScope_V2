@@ -93,15 +93,30 @@ export function renderList(items, keyName = null) {
 }
 
 export function renderMarkdown(markdown) {
-  const lines = String(markdown || "").split(/\r?\n/);
+  const source = String(markdown || "")
+    .trim()
+    .replace(/^```(?:markdown|md)?\s*/i, "")
+    .replace(/\s*```$/i, "");
+  const lines = source.split(/\r?\n/);
   const html = [];
-  let inList = false;
+  let listType = null;
   const closeList = () => {
-    if (inList) {
-      html.push("</ul>");
-      inList = false;
+    if (listType) {
+      html.push(`</${listType}>`);
+      listType = null;
     }
   };
+  const openList = (type) => {
+    if (listType === type) return;
+    closeList();
+    html.push(`<${type}>`);
+    listType = type;
+  };
+  const inline = (value) =>
+    escapeHtml(value)
+      .replace(/`([^`]+)`/g, "<code>$1</code>")
+      .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
+      .replace(/\*([^*]+)\*/g, "<em>$1</em>");
 
   for (const rawLine of lines) {
     const line = rawLine.trim();
@@ -109,28 +124,48 @@ export function renderMarkdown(markdown) {
       closeList();
       continue;
     }
-    if (line.startsWith("### ")) {
+    if (/^---+$/.test(line)) {
       closeList();
-      html.push(`<h4>${escapeHtml(line.slice(4))}</h4>`);
+      html.push("<hr />");
+    } else if (line.startsWith("#### ")) {
+      closeList();
+      html.push(`<h5>${inline(line.slice(5))}</h5>`);
+    } else if (line.startsWith("### ")) {
+      closeList();
+      html.push(`<h4>${inline(line.slice(4))}</h4>`);
     } else if (line.startsWith("## ")) {
       closeList();
-      html.push(`<h3>${escapeHtml(line.slice(3))}</h3>`);
+      html.push(`<h3>${inline(line.slice(3))}</h3>`);
     } else if (line.startsWith("# ")) {
       closeList();
-      html.push(`<h2>${escapeHtml(line.slice(2))}</h2>`);
+      html.push(`<h2>${inline(line.slice(2))}</h2>`);
     } else if (line.startsWith("- ") || line.startsWith("* ")) {
-      if (!inList) {
-        html.push("<ul>");
-        inList = true;
-      }
-      html.push(`<li>${escapeHtml(line.slice(2))}</li>`);
+      openList("ul");
+      html.push(`<li>${inline(line.slice(2))}</li>`);
+    } else if (/^\d+[.)]\s+/.test(line)) {
+      openList("ol");
+      html.push(`<li>${inline(line.replace(/^\d+[.)]\s+/, ""))}</li>`);
+    } else if (line.startsWith("> ")) {
+      closeList();
+      html.push(`<blockquote>${inline(line.slice(2))}</blockquote>`);
     } else {
       closeList();
-      html.push(`<p>${escapeHtml(line)}</p>`);
+      html.push(`<p>${inline(line)}</p>`);
     }
   }
   closeList();
   return html.join("");
+}
+
+export function renderPlainText(text) {
+  const source = String(text || "").trim();
+  if (!source) return "";
+  return source
+    .split(/\n{2,}/)
+    .map((paragraph) => paragraph.trim())
+    .filter(Boolean)
+    .map((paragraph) => `<p>${escapeHtml(paragraph).replace(/\n/g, "<br />")}</p>`)
+    .join("");
 }
 
 export function readCsvList(value) {
