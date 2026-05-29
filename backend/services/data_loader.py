@@ -6,6 +6,8 @@
 from __future__ import annotations
 
 from io import BytesIO
+import json
+from pathlib import Path
 from typing import BinaryIO
 
 import pandas as pd
@@ -19,6 +21,7 @@ _current_raw_df: pd.DataFrame | None = None
 _current_clean_df: pd.DataFrame | None = None
 _current_source_name = "No data loaded"
 _current_report: dict = {}
+SUPPORTED_UPLOAD_EXTENSIONS = {".csv", ".tsv", ".xlsx", ".json"}
 
 
 def _read_csv_bytes(content: bytes) -> pd.DataFrame:
@@ -31,6 +34,64 @@ def _read_csv_bytes(content: bytes) -> pd.DataFrame:
     if last_error:
         raise last_error
     raise ValueError("无法读取 CSV 文件。")
+
+
+def _ensure_not_empty(content: bytes) -> None:
+    if not content or not content.strip():
+        raise ValueError("上传数据文件为空，请选择包含表格数据的文件。")
+
+
+def _ensure_has_tabular_data(df: pd.DataFrame, empty_message: str) -> pd.DataFrame:
+    if df is None or df.empty or len(df.columns) == 0:
+        raise ValueError(empty_message)
+    return df
+
+
+def _read_json_bytes(content: bytes) -> pd.DataFrame:
+    try:
+        payload = json.loads(content.decode("utf-8"))
+    except UnicodeDecodeError as exc:
+        raise ValueError("JSON 文件编码不是有效的 UTF-8。") from exc
+    except json.JSONDecodeError as exc:
+        raise ValueError("JSON 文件格式不正确，无法解析为表格数据。") from exc
+
+    if not isinstance(payload, list):
+        raise ValueError("JSON 文件需使用 records/list-of-objects 格式。")
+    if payload and not all(isinstance(item, dict) for item in payload):
+        raise ValueError("JSON 文件需使用 records/list-of-objects 格式。")
+
+    df = pd.read_json(BytesIO(content))
+    return _ensure_has_tabular_data(df, "JSON 文件中没有可读取的表格数据。")
+
+
+def read_uploaded_table(content: bytes, source_name: str) -> pd.DataFrame:
+    """学生 + AI：按扩展名读取上传文件，并统一返回 DataFrame。"""
+    _ensure_not_empty(content)
+    suffix = Path(source_name or "").suffix.lower()
+
+    if suffix not in SUPPORTED_UPLOAD_EXTENSIONS:
+        raise ValueError("仅支持 CSV、TSV、XLSX、JSON 文件上传。")
+
+    if suffix == ".csv":
+        return _ensure_has_tabular_data(_read_csv_bytes(content), "CSV 文件中没有可读取的数据。")
+    if suffix == ".tsv":
+        for encoding in ["utf-8-sig", "utf-8", "gbk", "latin1"]:
+            try:
+                df = pd.read_csv(BytesIO(content), sep="\t", low_memory=False, encoding=encoding)
+                return _ensure_has_tabular_data(df, "TSV 文件中没有可读取的数据。")
+            except UnicodeDecodeError:
+                continue
+        raise ValueError("TSV 文件编码无法识别，请检查文件内容。")
+    if suffix == ".xlsx":
+        try:
+            df = pd.read_excel(BytesIO(content))
+        except Exception as exc:
+            raise ValueError(f"Excel 文件读取失败：{exc}") from exc
+        return _ensure_has_tabular_data(df, "Excel 文件中没有可读取的数据。")
+    if suffix == ".json":
+        return _read_json_bytes(content)
+
+    raise ValueError("仅支持 CSV、TSV、XLSX、JSON 文件上传。")
 
 
 def _cleaning_failure_message(report: dict, cleaned: pd.DataFrame) -> str:
@@ -76,13 +137,13 @@ def load_default_data() -> tuple[pd.DataFrame | None, dict]:
 
 
 def load_uploaded_data(file: BinaryIO | bytes, source_name: str = "uploaded.csv") -> tuple[pd.DataFrame | None, dict]:
-    """读取用户上传的 CSV 字节流，完成清洗并设置为当前数据集。"""
+    """读取用户上传的数据文件，完成清洗并设置为当前数据集。"""
     try:
         if isinstance(file, bytes):
             content = file
         else:
             content = file.read()
-        raw_df = _read_csv_bytes(content)
+        raw_df = read_uploaded_table(content, source_name)
         cleaned, report = _prepare_data(raw_df, source_name)
         if cleaned is None:
             return None, {
@@ -90,9 +151,9 @@ def load_uploaded_data(file: BinaryIO | bytes, source_name: str = "uploaded.csv"
                 "message": report.get("message", "上传数据清洗后不可用。"),
                 "cleaning_report": report,
             }
-        return cleaned, {"success": True, "message": "上传数据加载成功。", "cleaning_report": report}
+        return cleaned, {"success": True, "message": "上传数据文件加载成功。", "cleaning_report": report}
     except Exception as exc:
-        return None, {"success": False, "message": f"上传 CSV 读取失败：{exc}"}
+        return None, {"success": False, "message": f"上传数据文件读取失败：{exc}"}
 
 
 def get_current_data() -> tuple[pd.DataFrame | None, str, dict]:

@@ -57,7 +57,7 @@ export async function apiPost(url, body) {
   }
 }
 
-export async function uploadCsv(file) {
+export async function uploadDataFile(file) {
   beginRequest();
   try {
     const formData = new FormData();
