@@ -37,6 +37,7 @@ def create_conversation() -> str:
         "history": [],
         "intent": deepcopy(DEFAULT_INTENT),
         "filters": deepcopy(DEFAULT_FILTERS),
+        "last_analysis": None,
     }
     return conversation_id
 
@@ -96,6 +97,16 @@ def update_context(conversation_id: str, intent: dict[str, Any]) -> None:
     conversation = _CONVERSATIONS[conversation_id]
     conversation["intent"] = merge_intent(conversation.get("intent"), intent)
     conversation["filters"] = normalize_filters(conversation["intent"].get("filters"))
+
+
+def update_last_analysis(conversation_id: str, payload: dict[str, Any] | None) -> None:
+    """Store the latest executable analysis snapshot for follow-up turns."""
+    _CONVERSATIONS[conversation_id]["last_analysis"] = deepcopy(payload) if payload else None
+
+
+def get_last_analysis(conversation_id: str) -> dict[str, Any] | None:
+    """Read the latest executable analysis snapshot for follow-up turns."""
+    return deepcopy(_CONVERSATIONS[conversation_id].get("last_analysis"))
 
 
 def clear_conversations() -> None:

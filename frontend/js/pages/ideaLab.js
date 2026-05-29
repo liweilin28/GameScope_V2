@@ -1,4 +1,5 @@
 import { analyzeIdea, chatIdeaAdvisor, getLlmStatus, parseIdea } from "../api.js?v=20260529cachefix1";
+import { state } from "../state.js?v=20260529cachefix1";
 import {
   renderHistogram,
   renderHorizontalBarChart,
@@ -223,6 +224,7 @@ async function runScan() {
     };
     const result = await analyzeIdea(payload);
     latestIdeaAnalysis = result;
+    state.ideaLabContext = result;
     renderProfileEditor(result.idea_profile || readProfile());
     advisorHistory = [];
     const score = result.opportunity_score || {};
@@ -299,6 +301,7 @@ async function runScan() {
       `<div class="notice warning"><strong>分析失败</strong><span>${escapeHtml(error.message)}</span></div>`;
     emptyChartIds.forEach((id) => showEmptyState(id, "请检查数据是否已加载，或放宽创意筛选条件。"));
     latestIdeaAnalysis = null;
+    state.ideaLabContext = null;
     advisorHistory = [];
     resetAdvisorChat();
     syncAdvisorComposerState();

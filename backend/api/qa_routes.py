@@ -33,6 +33,7 @@ def chat_endpoint(request: QaChatRequest):
             conversation_id=request.conversation_id,
             history=[item.model_dump() for item in request.history],
             current_filters=request.current_filters.model_dump() if request.current_filters else None,
+            idea_context=request.idea_context,
         )
         return ok(data, report.get("message", "当前没有可分析的数据。"))
     data = chat(
@@ -41,5 +42,6 @@ def chat_endpoint(request: QaChatRequest):
         conversation_id=request.conversation_id,
         history=[item.model_dump() for item in request.history],
         current_filters=request.current_filters.model_dump() if request.current_filters else None,
+        idea_context=request.idea_context,
     )
     return ok(data, "智能问数处理完成。")

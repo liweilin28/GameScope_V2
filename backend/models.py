@@ -46,6 +46,7 @@ class QaChatRequest(BaseModel):
     message: str = Field(..., min_length=1)
     history: list[QaHistoryMessage] = []
     current_filters: QaFilters | None = None
+    idea_context: dict[str, Any] | None = None
 
 
 class IdeaParseRequest(BaseModel):

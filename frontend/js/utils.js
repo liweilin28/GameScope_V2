@@ -113,13 +113,15 @@ function renderInlineMarkdown(value) {
   text = text.replace(/\[([^\]\n]+)\]\(([^)\s]+)\)/g, (_, label, href) => {
     const safeHref = sanitizeMarkdownHref(href);
     if (!safeHref) return `${label} (${href})`;
-    return stash(`<a href="${escapeHtml(safeHref)}" target="_blank" rel="noreferrer">${escapeHtml(label)}</a>`);
+    return stash(`<a href="${escapeHtml(safeHref)}" target="_blank" rel="noopener noreferrer">${escapeHtml(label)}</a>`);
   });
 
   let html = escapeHtml(text);
   html = html
     .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
-    .replace(/__([^_]+)__/g, "<strong>$1</strong>");
+    .replace(/__([^_]+)__/g, "<strong>$1</strong>")
+    .replace(/(^|[^\w])\*([^*\n]+)\*(?!\*)/g, "$1<em>$2</em>")
+    .replace(/(^|[^\w])_([^_\n]+)_(?!_)/g, "$1<em>$2</em>");
 
   for (const [token, replacement] of placeholders) {
     html = html.replaceAll(token, replacement);

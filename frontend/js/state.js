@@ -3,6 +3,7 @@ export const state = {
   backendOnline: false,
   llmStatus: null,
   chartInstances: {},
+  ideaLabContext: null,
   explorerFilters: {
     only_indie: true,
     year_range: null,
