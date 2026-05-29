@@ -223,12 +223,16 @@ async function runScan() {
     };
     const result = await analyzeIdea(payload);
     latestIdeaAnalysis = result;
+    renderProfileEditor(result.idea_profile || readProfile());
     advisorHistory = [];
     const score = result.opportunity_score || {};
     const band = scoreBand(score.total_score);
     const dims = dimensionRows(score.dimensions);
 
-    document.querySelector("#idea-alert").innerHTML = "";
+    const notes = Array.isArray(result.normalization_notes) ? result.normalization_notes.filter(Boolean) : [];
+    document.querySelector("#idea-alert").innerHTML = notes.length
+      ? `<div class="notice warning"><strong>查询已规范化</strong><span>${escapeHtml(notes.join("；"))}</span></div>`
+      : "";
     document.querySelector("#score-summary").innerHTML = [
       scoreCard("机会总分", formatNumber(score.total_score, 1), band.label, band.className),
       scoreCard("候选池数量", formatNumber(result.candidate_pool_size ?? result.support_data?.competitor_evidence?.summary?.candidate_pool_size, 0), `展示 Top ${result.returned_competitor_count ?? result.competitors?.length ?? 0} 相似竞品`),

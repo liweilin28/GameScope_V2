@@ -15,7 +15,7 @@ from backend.services import analyzer
 from backend.services.competitor_radar import find_similar_games
 from backend.services.data_loader import ensure_current_data
 from backend.services.idea_advisor import generate_idea_advisor_answer
-from backend.services.idea_parser import normalize_idea_profile, parse_idea
+from backend.services.idea_parser import normalize_market_query_intent, parse_idea
 from backend.services.opportunity_score import calculate_opportunity_score
 from backend.services.report_generator import generate_differentiation_cards, generate_project_brief
 
@@ -32,6 +32,25 @@ def _segment_for_profile(df: pd.DataFrame, profile: dict, only_indie: bool) -> p
         tags=profile.get("target_tags"),
         min_reviews=0,
     )
+
+
+def _segment_with_fallback(df: pd.DataFrame, profile: dict, only_indie: bool) -> tuple[pd.DataFrame, list[str]]:
+    notes: list[str] = []
+    segment = _segment_for_profile(df, profile, only_indie)
+    if not segment.empty:
+        return segment, notes
+
+    fallback_attempts = [
+        ("drop target_tags hard filter", {**profile, "target_tags": []}),
+        ("drop target_genres hard filter", {**profile, "target_genres": []}),
+        ("drop target_genres and target_tags hard filters", {**profile, "target_genres": [], "target_tags": []}),
+    ]
+    for reason, relaxed_profile in fallback_attempts:
+        relaxed_segment = _segment_for_profile(df, relaxed_profile, only_indie)
+        if not relaxed_segment.empty:
+            notes.append(f"candidate pool fallback applied: {reason}")
+            return relaxed_segment, notes
+    return segment, notes
 
 
 def _charts(segment: pd.DataFrame, competitors: list[dict]) -> dict:
@@ -242,15 +261,18 @@ def analyze(request: IdeaAnalyzeRequest):
     if df is None:
         return fail(report.get("message", "当前没有可用数据，请先上传 CSV。"))
 
-    profile = normalize_idea_profile(request.idea_profile) if request.idea_profile else parse_idea(request.idea_text, prefer_llm=True)
+    raw_profile = request.idea_profile if request.idea_profile else parse_idea(request.idea_text, prefer_llm=True)
+    profile = normalize_market_query_intent(raw_profile, df=df)
     top_n = max(1, min(request.top_n, 30))
     competitors = find_similar_games(df, profile, top_n=top_n, only_indie=request.only_indie)
-    segment = _segment_for_profile(df, profile, request.only_indie)
+    segment, fallback_notes = _segment_with_fallback(df, profile, request.only_indie)
+    normalization_notes = list(profile.get("normalization_notes", [])) + fallback_notes
     score = calculate_opportunity_score(segment, df, competitors)
     cards = generate_differentiation_cards(profile, competitors, score)
     charts = _charts(segment, competitors)
     analysis_result = {
         "idea_profile": profile,
+        "query_intent": profile,
         "opportunity_score": score,
         "competitors": competitors,
         "differentiation_cards": cards,
@@ -259,6 +281,7 @@ def analyze(request: IdeaAnalyzeRequest):
         "candidate_pool_size": int(len(segment)),
         "returned_competitor_count": len(competitors),
         "llm_used": bool(profile.get("llm_used", False)),
+        "normalization_notes": normalization_notes,
     }
     brief, brief_llm_used = generate_project_brief(analysis_result, use_llm=True)
     analysis_result["brief"] = brief

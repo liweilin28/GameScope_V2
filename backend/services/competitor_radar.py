@@ -14,6 +14,15 @@ def _norm_set(values) -> set[str]:
     return {str(item).lower() for item in values or [] if str(item).strip()}
 
 
+def _tokenize_text(value: str) -> set[str]:
+    tokens = []
+    for raw in str(value or "").replace("/", " ").replace("-", " ").split():
+        token = raw.strip(" ,.;:()[]{}\"'").lower()
+        if token:
+            tokens.append(token)
+    return set(tokens)
+
+
 def _jaccard(a: set[str], b: set[str]) -> float:
     if not a or not b:
         return 0.0
@@ -47,14 +56,18 @@ def find_similar_games(df: pd.DataFrame, idea_profile: dict, top_n: int = 10, on
         idea_profile.get("art_style_keywords", [])
         + idea_profile.get("gameplay_keywords", [])
         + idea_profile.get("narrative_keywords", [])
+        + idea_profile.get("soft_keywords", [])
     )
+    for title in idea_profile.get("reference_games", []) or []:
+        keywords |= _tokenize_text(title)
     price_range = idea_profile.get("price_range", [0, 20])
 
     rows = []
     for _, row in data.iterrows():
         genres = _norm_set(row.get("genre_list", []))
         tags = _norm_set(row.get("tag_list", []))
-        text_pool = genres | tags | {str(row.get("name", "")).lower()}
+        name = str(row.get("name", "")).lower()
+        text_pool = genres | tags | {name} | _tokenize_text(name)
         genre_sim = _jaccard(target_genres, genres)
         tag_sim = _jaccard(target_tags, tags)
         price_sim = _price_similarity(row.get("price"), price_range)
