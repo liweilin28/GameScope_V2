@@ -1,4 +1,4 @@
-import { getCleaningReport, getDataPreview, getDataStatus, uploadCsv } from "../api.js";
+import { getCleaningReport, getDataPreview, getDataStatus, uploadDataFile } from "../api.js";
 import { escapeHtml, renderList, renderTable, showToast } from "../utils.js";
 
 export function renderDataPipeline() {
@@ -8,16 +8,24 @@ export function renderDataPipeline() {
         <div>
           <p class="eyebrow">数据流程</p>
           <h2>数据读取与清洗</h2>
-          <p>展示默认数据状态、CSV 上传、字段兼容、缺失值和清洗报告。</p>
+          <p>展示默认数据状态、多格式数据上传、字段兼容、缺失值和清洗报告。</p>
         </div>
         <label class="upload-button">
-          上传 CSV
-          <input id="csv-upload" type="file" accept=".csv,text/csv" hidden />
+          上传数据文件
+          <input id="data-file-upload" type="file" accept=".csv,.tsv,.xlsx,.json,text/csv,text/tab-separated-values,application/json,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden />
         </label>
       </div>
 
       <div id="pipeline-alert"></div>
       <div class="grid-3" id="pipeline-summary"></div>
+
+      <article class="card">
+        <h3>上传说明</h3>
+        <div class="stack">
+          <p>本系统支持 CSV、TSV、XLSX、JSON 数据文件上传。</p>
+          <p>后续分析主要面向 Steam 游戏数据字段，如果缺少 name、price、genres、tags、positive_reviews、negative_reviews 等字段，会在字段兼容性检查中提示。</p>
+        </div>
+      </article>
 
       <div class="card">
         <div class="card-title-row">
@@ -80,7 +88,7 @@ async function refreshPipeline() {
 
   document.querySelector("#pipeline-alert").innerHTML = statusData?.default_data_exists
     ? ""
-    : warningCard("默认数据文件 data/sample/sample_steam_games.csv 暂不存在。你仍然可以上传 CSV 进行演示。");
+    : warningCard("默认数据文件 data/sample/sample_steam_games.csv 暂不存在。你仍然可以上传 CSV、TSV、XLSX 或 JSON 进行演示。");
 
   document.querySelector("#pipeline-summary").innerHTML = [
     summaryCard("当前数据来源", statusData?.source_name || "未加载数据"),
@@ -139,17 +147,17 @@ async function refreshPipeline() {
     : `<div class="empty-state">暂无清洗报告。</div>`;
 
   if (preview.status === "rejected" || report.status === "rejected") {
-    showToast("部分数据接口暂不可用，请确认已上传 CSV 或放置默认数据。");
+    showToast("部分数据接口暂不可用，请确认已上传数据文件或放置默认数据。");
   }
 }
 
 export function initDataPipelinePage() {
   refreshPipeline();
-  document.querySelector("#csv-upload")?.addEventListener("change", async (event) => {
+  document.querySelector("#data-file-upload")?.addEventListener("change", async (event) => {
     const file = event.target.files?.[0];
     if (!file) return;
     try {
-      await uploadCsv(file);
+      await uploadDataFile(file);
       await refreshPipeline();
     } finally {
       event.target.value = "";

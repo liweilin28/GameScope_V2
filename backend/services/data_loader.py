@@ -5,7 +5,10 @@
 
 from __future__ import annotations
 
+import json
 from io import BytesIO
+from pathlib import Path
+from typing import Any
 from typing import BinaryIO
 
 import pandas as pd
@@ -19,11 +22,13 @@ _current_raw_df: pd.DataFrame | None = None
 _current_clean_df: pd.DataFrame | None = None
 _current_source_name = "No data loaded"
 _current_report: dict = {}
+SUPPORTED_EXTENSIONS = {".csv", ".tsv", ".xlsx", ".json"}
+TEXT_ENCODINGS = ["utf-8-sig", "utf-8", "gbk", "latin1"]
 
 
 def _read_csv_bytes(content: bytes) -> pd.DataFrame:
     last_error: Exception | None = None
-    for encoding in ["utf-8-sig", "utf-8", "gbk", "latin1"]:
+    for encoding in TEXT_ENCODINGS:
         try:
             return pd.read_csv(BytesIO(content), low_memory=False, encoding=encoding)
         except UnicodeDecodeError as exc:
@@ -31,6 +36,95 @@ def _read_csv_bytes(content: bytes) -> pd.DataFrame:
     if last_error:
         raise last_error
     raise ValueError("无法读取 CSV 文件。")
+
+
+def _read_tsv_bytes(content: bytes) -> pd.DataFrame:
+    last_error: Exception | None = None
+    for encoding in TEXT_ENCODINGS:
+        try:
+            return pd.read_csv(BytesIO(content), sep="\t", low_memory=False, encoding=encoding)
+        except UnicodeDecodeError as exc:
+            last_error = exc
+    if last_error:
+        raise last_error
+    raise ValueError("无法读取 TSV 文件。")
+
+
+def _decode_text_content(content: bytes) -> str:
+    last_error: Exception | None = None
+    for encoding in TEXT_ENCODINGS:
+        try:
+            return content.decode(encoding)
+        except UnicodeDecodeError as exc:
+            last_error = exc
+    if last_error:
+        raise last_error
+    raise ValueError("文本内容解码失败。")
+
+
+def _read_excel_bytes(content: bytes) -> pd.DataFrame:
+    try:
+        return pd.read_excel(BytesIO(content))
+    except ValueError as exc:
+        raise ValueError("Excel 文件没有可读取的数据。") from exc
+
+
+def _validate_json_table(parsed: Any) -> None:
+    if not isinstance(parsed, list):
+        raise ValueError("JSON 文件格式不符合表格数据，需为对象列表（records）格式。")
+    if not parsed:
+        raise ValueError("JSON 文件内容为空，无法读取表格数据。")
+    if any(not isinstance(item, dict) for item in parsed):
+        raise ValueError("JSON 文件格式不符合表格数据，列表中的每一项都应为对象。")
+
+
+def _read_json_bytes(content: bytes) -> pd.DataFrame:
+    text = _decode_text_content(content)
+    try:
+        parsed = json.loads(text)
+    except json.JSONDecodeError as exc:
+        raise ValueError("JSON 文件格式不正确，无法解析。") from exc
+
+    _validate_json_table(parsed)
+
+    try:
+        return pd.read_json(BytesIO(text.encode("utf-8")))
+    except ValueError as exc:
+        raise ValueError("JSON 文件格式不符合表格数据，无法转换为表格。") from exc
+
+
+def _ensure_non_empty_dataframe(df: pd.DataFrame, suffix: str) -> pd.DataFrame:
+    if df is None or (df.empty and len(df.columns) == 0):
+        if suffix == ".xlsx":
+            raise ValueError("Excel 文件没有可读取的数据。")
+        if suffix == ".json":
+            raise ValueError("JSON 文件没有可读取的表格数据。")
+        raise ValueError("上传的数据文件为空，无法读取。")
+    return df
+
+
+def get_supported_extensions() -> tuple[str, ...]:
+    return tuple(sorted(SUPPORTED_EXTENSIONS))
+
+
+def _read_uploaded_dataframe(content: bytes, source_name: str) -> pd.DataFrame:
+    if not content or not content.strip():
+        raise ValueError("上传的数据文件为空，无法读取。")
+
+    suffix = Path(source_name).suffix.lower()
+    if suffix not in SUPPORTED_EXTENSIONS:
+        raise ValueError("仅支持 CSV、TSV、XLSX、JSON 文件上传。")
+
+    if suffix == ".csv":
+        return _ensure_non_empty_dataframe(_read_csv_bytes(content), suffix)
+    if suffix == ".tsv":
+        return _ensure_non_empty_dataframe(_read_tsv_bytes(content), suffix)
+    if suffix == ".xlsx":
+        return _ensure_non_empty_dataframe(_read_excel_bytes(content), suffix)
+    if suffix == ".json":
+        return _ensure_non_empty_dataframe(_read_json_bytes(content), suffix)
+
+    raise ValueError("仅支持 CSV、TSV、XLSX、JSON 文件上传。")
 
 
 def _cleaning_failure_message(report: dict, cleaned: pd.DataFrame) -> str:
@@ -76,13 +170,13 @@ def load_default_data() -> tuple[pd.DataFrame | None, dict]:
 
 
 def load_uploaded_data(file: BinaryIO | bytes, source_name: str = "uploaded.csv") -> tuple[pd.DataFrame | None, dict]:
-    """读取用户上传的 CSV 字节流，完成清洗并设置为当前数据集。"""
+    """读取用户上传的数据文件字节流，完成清洗并设置为当前数据集。"""
     try:
         if isinstance(file, bytes):
             content = file
         else:
             content = file.read()
-        raw_df = _read_csv_bytes(content)
+        raw_df = _read_uploaded_dataframe(content, source_name)
         cleaned, report = _prepare_data(raw_df, source_name)
         if cleaned is None:
             return None, {
@@ -92,7 +186,7 @@ def load_uploaded_data(file: BinaryIO | bytes, source_name: str = "uploaded.csv"
             }
         return cleaned, {"success": True, "message": "上传数据加载成功。", "cleaning_report": report}
     except Exception as exc:
-        return None, {"success": False, "message": f"上传 CSV 读取失败：{exc}"}
+        return None, {"success": False, "message": f"上传数据文件读取失败：{exc}"}
 
 
 def get_current_data() -> tuple[pd.DataFrame | None, str, dict]:

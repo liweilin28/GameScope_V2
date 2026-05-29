@@ -1,6 +1,6 @@
 """
 来源：学生 + AI
-作用：提供数据状态、CSV 上传、数据预览和清洗报告 API。
+作用：提供数据状态、数据文件上传、数据预览和清洗报告 API。
 """
 
 from __future__ import annotations
@@ -14,6 +14,7 @@ from backend.services.data_loader import (
     ensure_current_data,
     get_current_data,
     get_current_raw_data,
+    get_supported_extensions,
     load_uploaded_data,
 )
 from backend.services.utils import dataframe_to_records
@@ -41,20 +42,24 @@ def data_status():
 
 @router.post("/upload")
 async def upload_csv(file: UploadFile = File(...)):
-    if not file.filename.lower().endswith(".csv"):
-        return fail("请上传 CSV 文件。")
+    filename = (file.filename or "").strip()
+    supported_extensions = get_supported_extensions()
+    if not filename:
+        return fail("请选择要上传的数据文件。")
+    if not filename.lower().endswith(supported_extensions):
+        return fail("仅支持 CSV、TSV、XLSX、JSON 文件上传。")
     content = await file.read()
-    df, result = load_uploaded_data(content, file.filename)
+    df, result = load_uploaded_data(content, filename)
     if df is None:
         return fail(result["message"])
     return ok(
         {
-            "source_name": file.filename,
+            "source_name": filename,
             "rows": int(len(df)),
             "columns": list(df.columns),
             "cleaning_report": result.get("cleaning_report", {}),
         },
-        "上传 CSV 已读取并清洗。",
+        "上传数据文件已读取并清洗。",
     )
 
 
