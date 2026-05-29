@@ -1,4 +1,3 @@
-import { analyzeIdea, getLlmStatus, parseIdea } from "../api.js";
 import { analyzeIdea, chatIdeaAdvisor, getLlmStatus, parseIdea } from "../api.js";
 import {
   renderHistogram,
@@ -6,9 +5,6 @@ import {
   renderRadarChart,
   renderScatterChart,
   showEmptyState,
-} from "../charts.js";
-import { renderSupportDataToggle, setupSupportDataToggles } from "../supportData.js";
-import { escapeHtml, formatNumber, renderMarkdown, renderTable, showToast } from "../utils.js";
 } from "../charts.js";
 import { renderSupportDataToggle, setupSupportDataToggles } from "../supportData.js";
 import { escapeHtml, formatNumber, renderMarkdown, renderTable, showToast } from "../utils.js";
