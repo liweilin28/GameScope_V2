@@ -93,3 +93,11 @@ def review_log_histogram():
         analyzer.analyze_numeric_histogram(df, "total_reviews", bins=10, log_transform=True),
         "评论数 log 分布获取成功。",
     )
+
+
+@router.get("/insights")
+def dashboard_insights():
+    df, message = _get_df_or_error()
+    if df is None:
+        return fail(message)
+    return ok(analyzer.generate_dashboard_insights(df), "数据发现获取成功。")

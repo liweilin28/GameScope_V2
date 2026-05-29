@@ -92,19 +92,16 @@ def test_load_uploaded_data_rejects_unsupported_extension_with_chinese_message()
     assert result["message"] == "上传数据文件读取失败：仅支持 CSV、TSV、XLSX、JSON 文件上传。"
 
 
-def test_load_uploaded_data_rejects_cleaning_errors_and_keeps_current_data():
-    _seed_current_data()
-    broken_csv = b"price,genres,tags,positive_reviews,negative_reviews\n9.99,Action,Shooter,10,2\n"
+def test_load_uploaded_data_generates_name_for_generic_csv_without_name():
+    generic_csv = b"id,category,value,date\n1,Puzzle,10,2024-01-01\n2,Strategy,20,2024-01-02\n"
 
-    df, result = data_loader.load_uploaded_data(broken_csv, "missing-name.csv")
-    current, source_name, report = data_loader.get_current_data()
+    df, result = data_loader.load_uploaded_data(generic_csv, "generic.csv")
 
-    assert df is None
-    assert result["success"] is False
-    assert "缺少关键字段 name" in result["message"]
-    assert source_name == "seed.csv"
-    assert len(current) == 1
-    assert report == {}
+    assert df is not None
+    assert result["success"] is True
+    assert list(df["name"]) == ["Puzzle", "Strategy"]
+    assert "display_name" in df.columns
+    assert any("缺少 name" in warning for warning in result["cleaning_report"]["warnings"])
 
 
 def test_load_uploaded_data_read_failure_keeps_current_data():

@@ -99,7 +99,7 @@ def _cleaning_failure_message(report: dict, cleaned: pd.DataFrame) -> str:
     if errors:
         return "数据清洗失败：" + "；".join(str(item) for item in errors)
     if cleaned.empty:
-        return "数据清洗后没有可用行，请检查 name 字段和数据内容。"
+        return "数据清洗后没有可用行，请检查行标识字段和数据内容。"
     return ""
 
 

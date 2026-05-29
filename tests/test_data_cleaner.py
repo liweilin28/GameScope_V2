@@ -80,3 +80,22 @@ def test_cleaner_drops_missing_name_and_duplicates():
     assert len(cleaned) == 1
     assert report["dropped_missing_name"] == 1
     assert report["dropped_duplicates"] == 1
+
+
+def test_cleaner_generates_name_from_generic_text_and_id_columns():
+    raw = pd.DataFrame(
+        {
+            "id": [101, 102],
+            "category": ["Puzzle", "Strategy"],
+            "value": [12.5, 8.0],
+            "date": ["2024-01-01", "2024-01-02"],
+        }
+    )
+
+    cleaned, report = clean_steam_data(raw)
+
+    assert report["errors"] == []
+    assert "缺少 name" in "；".join(report["warnings"])
+    assert "display_name" in cleaned.columns
+    assert list(cleaned["name"]) == ["Puzzle", "Strategy"]
+    assert list(cleaned["display_name"]) == ["Puzzle", "Strategy"]

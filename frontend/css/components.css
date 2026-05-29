@@ -320,6 +320,61 @@
   background: var(--panel-soft);
 }
 
+.readiness-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 10px;
+}
+
+.readiness-block {
+  display: grid;
+  gap: 10px;
+}
+
+.readiness-block h4 {
+  margin: 0;
+  font-size: 14px;
+}
+
+.readiness-list,
+.insight-list {
+  display: grid;
+  gap: 10px;
+}
+
+.readiness-item,
+.insight-item {
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+}
+
+.readiness-item-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.readiness-item-head strong {
+  font-size: 13px;
+}
+
+.readiness-item p,
+.insight-item p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.insight-item {
+  display: grid;
+  gap: 8px;
+}
+
 .support-score-row p,
 .support-score-row small {
   margin: 0;

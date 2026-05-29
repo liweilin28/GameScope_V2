@@ -1,7 +1,7 @@
 import { api } from "./api.js";
 import { state, pages } from "./state.js";
 import { showToast, setLoading } from "./utils.js";
-import { renderHome } from "./pages/home.js";
+import { initHomePage, renderHome } from "./pages/home.js";
 import { initDataPipelinePage, renderDataPipeline } from "./pages/dataPipeline.js";
 import { initDashboardPage, renderDashboard } from "./pages/dashboard.js";
 import { initExplorerPage, renderExplorer } from "./pages/explorer.js";
@@ -18,6 +18,7 @@ const renderers = {
 };
 
 const initializers = {
+  home: initHomePage,
   dataPipeline: initDataPipelinePage,
   dashboard: initDashboardPage,
   explorer: initExplorerPage,

@@ -15,7 +15,6 @@ from dotenv import load_dotenv
 load_dotenv()
 
 DEFAULT_LLM_BASE_URL = "https://api.deepseek.com"
-DEFAULT_LLM_MODEL = "deepseek-v4-flash"
 
 
 def _get_api_key() -> str:
@@ -27,7 +26,7 @@ def _get_base_url() -> str:
 
 
 def _get_model() -> str:
-    return os.getenv("LLM_MODEL", DEFAULT_LLM_MODEL).strip()
+    return os.getenv("LLM_MODEL", "").strip()
 
 
 def get_llm_status() -> dict[str, Any]:
@@ -39,7 +38,7 @@ def get_llm_status() -> dict[str, Any]:
     return {
         "enabled": enabled,
         "mode": "LLM Enabled" if enabled else "Rule-based fallback",
-        "model": model,
+        "model": model or "未配置",
         "base_url_configured": bool(base_url),
         "api_key_configured": bool(api_key),
     }

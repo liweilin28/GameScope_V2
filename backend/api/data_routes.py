@@ -69,7 +69,12 @@ def data_preview(limit: int = 10):
     raw_df = get_current_raw_data()
     useful_columns = [
         "app_id",
+        "id",
         "name",
+        "display_name",
+        "category",
+        "value",
+        "date",
         "release_date",
         "release_year",
         "price",
@@ -88,8 +93,14 @@ def data_preview(limit: int = 10):
         "price_level",
         "review_level",
     ]
-    raw_preview_df = raw_df[[c for c in useful_columns if raw_df is not None and c in raw_df.columns]] if raw_df is not None else None
-    clean_preview_df = df[[c for c in useful_columns if c in df.columns]]
+    raw_preview_columns = [c for c in useful_columns if raw_df is not None and c in raw_df.columns] if raw_df is not None else []
+    clean_preview_columns = [c for c in useful_columns if c in df.columns]
+    if raw_df is not None and not raw_preview_columns:
+        raw_preview_columns = list(raw_df.columns[: min(12, len(raw_df.columns))])
+    if not clean_preview_columns:
+        clean_preview_columns = list(df.columns[: min(12, len(df.columns))])
+    raw_preview_df = raw_df[raw_preview_columns] if raw_df is not None else None
+    clean_preview_df = df[clean_preview_columns]
     return ok(
         {
             "source_name": source_name,

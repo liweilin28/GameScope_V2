@@ -22,7 +22,7 @@ export function renderDataPipeline() {
       <div class="card">
         <h3>上传说明</h3>
         <p class="muted">本系统支持 CSV、TSV、XLSX、JSON 文件上传；后续分析主要面向 Steam 游戏数据字段。</p>
-        <p class="muted">如果缺少 name、price、genres、tags、positive_reviews、negative_reviews 等字段，会在字段兼容性检查中提示。</p>
+        <p class="muted">如果缺少 name，系统会尝试使用其他字符串列或 id 列生成行标识；若缺少 price、genres、tags、positive_reviews、negative_reviews 等字段，会在字段兼容性检查中提示。</p>
       </div>
 
       <div class="card">

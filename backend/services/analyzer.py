@@ -285,3 +285,61 @@ def get_field_compatibility_report(df: pd.DataFrame) -> dict[str, Any]:
         "can_price_analyze": "price" in fields,
         "can_genre_analyze": "genre_list" in fields or "genres" in fields,
     }
+
+
+def generate_dashboard_insights(df: pd.DataFrame) -> list[dict[str, str]]:
+    data = _empty_safe(df)
+    if data.empty:
+        return [{"type": "warning", "text": "当前没有可分析数据，请先加载默认数据或上传 CSV。"}]
+
+    insights: list[dict[str, str]] = []
+    insights.append({"type": "metric", "text": f"当前样本共 {len(data)} 行，覆盖 {len(data.columns)} 个字段。"})
+
+    if "release_year" in data.columns:
+        release_counts = (
+            data.dropna(subset=["release_year"])
+            .assign(release_year=lambda frame: frame["release_year"].astype(int))
+            .groupby("release_year")
+            .size()
+            .sort_values(ascending=False)
+        )
+        if not release_counts.empty:
+            peak_year = int(release_counts.index[0])
+            peak_count = int(release_counts.iloc[0])
+            insights.append({"type": "trend", "text": f"发行高峰年份是 {peak_year} 年，共有 {peak_count} 款样本。"})
+
+    genre_distribution = analyze_genre_distribution(data, top_n=1)
+    if genre_distribution:
+        top_genre = genre_distribution[0]
+        insights.append({"type": "genre", "text": f"最常见类型是 {top_genre['genre']}，出现 {top_genre['count']} 次。"})
+
+    tag_frequency = analyze_tag_frequency(data, top_n=1)
+    if tag_frequency:
+        top_tag = tag_frequency[0]
+        insights.append({"type": "tag", "text": f"最高频标签是 {top_tag['tag']}，出现 {top_tag['count']} 次。"})
+
+    price_distribution = analyze_price_distribution(data)
+    if price_distribution:
+        top_price = max(price_distribution, key=lambda item: item["count"])
+        if top_price["count"] > 0:
+            insights.append({"type": "price", "text": f"主要价格区间为 {top_price['price_level']}，共有 {top_price['count']} 款样本。"})
+
+    reception_distribution = analyze_reception_distribution(data)
+    if reception_distribution:
+        top_reception = max(reception_distribution, key=lambda item: item["count"])
+        if top_reception["count"] > 0:
+            insights.append({"type": "reception", "text": f"好评率主要集中在 {top_reception['range']}，共有 {top_reception['count']} 款样本。"})
+
+    if len(insights) == 1:
+        compatibility = get_field_compatibility_report(data)
+        notes = []
+        if not compatibility["can_price_analyze"]:
+            notes.append("缺少 price，无法展示价格结论")
+        if not compatibility["can_genre_analyze"]:
+            notes.append("缺少 genres/tags，无法展示类型与标签结论")
+        if not compatibility["can_review_analyze"]:
+            notes.append("缺少评论字段，无法展示口碑结论")
+        message = "；".join(notes) if notes else "当前数据字段较少，Steam 专用分析能力受限。"
+        insights.append({"type": "warning", "text": message})
+
+    return insights[:5]

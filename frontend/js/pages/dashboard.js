@@ -1,4 +1,5 @@
 import {
+  getDashboardInsights,
   getDashboardMetrics,
   getGenreDistribution,
   getPositiveRateHistogram,
@@ -13,7 +14,7 @@ import {
   renderLineChart,
   showEmptyState,
 } from "../charts.js";
-import { formatNumber, formatPercent, showToast } from "../utils.js";
+import { escapeHtml, formatNumber, formatPercent, showToast } from "../utils.js";
 
 export function renderDashboard() {
   return `
@@ -28,6 +29,16 @@ export function renderDashboard() {
 
       <div id="dashboard-alert"></div>
       <div class="metrics-grid" id="dashboard-metrics"></div>
+
+      <article class="card">
+        <div class="card-title-row">
+          <div>
+            <h3>数据发现</h3>
+            <p class="muted">以下结论由后端 pandas 统计结果生成，不使用 LLM 编造。</p>
+          </div>
+        </div>
+        <div id="dashboard-insights"></div>
+      </article>
 
       <div class="grid-2">
         ${chartPanel("年份发行趋势", "Steam 游戏发行数量是否随时间变化？", "折线图用于观察年份变化趋势。", "release-trend-chart")}
@@ -62,11 +73,33 @@ function metric(label, value, description = "") {
   return `<article class="metric-card"><span>${label}</span><strong>${value}</strong><small>${description}</small></article>`;
 }
 
+function renderInsights(items) {
+  const rows = Array.isArray(items) ? items : [];
+  if (!rows.length) {
+    return `<div class="empty-state">暂无可用结论。</div>`;
+  }
+  return `
+    <div class="insight-list">
+      ${rows
+        .map(
+          (item) => `
+            <div class="insight-item">
+              <span class="pill">${escapeHtml(item.type || "发现")}</span>
+              <p>${escapeHtml(item.text || "")}</p>
+            </div>
+          `,
+        )
+        .join("")}
+    </div>
+  `;
+}
+
 export async function initDashboardPage() {
   const chartIds = ["release-trend-chart", "genre-chart", "tag-chart", "price-chart", "reception-chart", "review-log-chart"];
   try {
-    const [metrics, trend, genres, tags, priceHistogram, rateHistogram, reviewLogHistogram] = await Promise.all([
+    const [metrics, insights, trend, genres, tags, priceHistogram, rateHistogram, reviewLogHistogram] = await Promise.all([
       getDashboardMetrics(),
+      getDashboardInsights(),
       getReleaseTrend(),
       getGenreDistribution(),
       getTagFrequency(),
@@ -85,6 +118,7 @@ export async function initDashboardPage() {
       metric("免费游戏比例", formatPercent(metrics.free_game_ratio), "price = 0 的样本占比"),
       metric("独立游戏比例", formatPercent(metrics.indie_game_ratio), "genres 或 tags 含 Indie 的占比"),
     ].join("");
+    document.querySelector("#dashboard-insights").innerHTML = renderInsights(insights);
 
     renderLineChart("release-trend-chart", "年份发行趋势", trend, "year", "count", { area: true });
     renderHorizontalBarChart("genre-chart", "Genre Top 10", genres, "genre", "count");
@@ -96,6 +130,7 @@ export async function initDashboardPage() {
     document.querySelector("#dashboard-alert").innerHTML =
       `<div class="notice warning"><strong>暂无可分析数据</strong><span>${error.message}</span></div>`;
     document.querySelector("#dashboard-metrics").innerHTML = "";
+    document.querySelector("#dashboard-insights").innerHTML = `<div class="empty-state">暂无可用结论。</div>`;
     chartIds.forEach((id) => showEmptyState(id, "请先在 Data Pipeline 页面加载默认数据或上传 CSV。"));
     showToast("市场总览暂无数据。");
   }

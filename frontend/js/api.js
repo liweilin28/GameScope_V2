@@ -79,11 +79,13 @@ export async function uploadDataFile(file) {
 
 export const getSystemHealth = () => apiGet("/api/system/health");
 export const getLlmStatus = () => apiGet("/api/system/llm-status");
+export const getSubmissionReadiness = () => apiGet("/api/system/submission-readiness");
 export const getDataStatus = () => apiGet("/api/data/status");
 export const getDataPreview = () => apiGet("/api/data/preview?limit=20");
 export const getRawData = (limit = 0) => apiGet(`/api/data/raw?limit=${limit}`);
 export const getCleaningReport = () => apiGet("/api/data/cleaning-report");
 export const getDashboardMetrics = () => apiGet("/api/dashboard/metrics");
+export const getDashboardInsights = () => apiGet("/api/dashboard/insights");
 export const getReleaseTrend = () => apiGet("/api/dashboard/release-trend");
 export const getGenreDistribution = () => apiGet("/api/dashboard/genre-distribution");
 export const getTagFrequency = () => apiGet("/api/dashboard/tag-frequency");
@@ -104,5 +106,6 @@ export const chatIdeaAdvisor = (payload) => apiPost("/api/idea/advisor-chat", pa
 export const api = {
   health: getSystemHealth,
   llmStatus: getLlmStatus,
+  submissionReadiness: getSubmissionReadiness,
   dataStatus: getDataStatus,
 };
