@@ -10,10 +10,11 @@ import math
 import pandas as pd
 from fastapi import APIRouter
 
-from backend.models import IdeaAnalyzeRequest, IdeaParseRequest, IdeaReportRequest, fail, ok
+from backend.models import IdeaAdvisorChatRequest, IdeaAnalyzeRequest, IdeaParseRequest, IdeaReportRequest, fail, ok
 from backend.services import analyzer
 from backend.services.competitor_radar import find_similar_games
 from backend.services.data_loader import ensure_current_data
+from backend.services.idea_advisor import generate_idea_advisor_answer
 from backend.services.idea_parser import normalize_idea_profile, parse_idea
 from backend.services.opportunity_score import calculate_opportunity_score
 from backend.services.report_generator import generate_differentiation_cards, generate_project_brief
@@ -262,3 +263,9 @@ def analyze(request: IdeaAnalyzeRequest):
 def report(request: IdeaReportRequest):
     brief, llm_used = generate_project_brief(request.analysis_result, use_llm=True)
     return ok({"brief": brief, "llm_used": llm_used}, "Project Brief 生成完成。")
+
+
+@router.post("/advisor-chat")
+def advisor_chat(request: IdeaAdvisorChatRequest):
+    answer = generate_idea_advisor_answer(request)
+    return ok(answer, "立项顾问回答生成完成。")

@@ -5,6 +5,7 @@ from backend.services.competitor_radar import find_similar_games
 from backend.services import analyzer
 from backend.services.data_cleaner import clean_steam_data
 from backend.services.idea_parser import normalize_idea_profile, parse_idea
+from backend.services.idea_advisor import generate_idea_advisor_answer
 from backend.services.llm_client import get_llm_status, safe_call_llm
 from backend.services.opportunity_score import calculate_opportunity_score
 from backend.services.report_generator import generate_differentiation_cards, generate_project_brief
@@ -153,3 +154,75 @@ def test_no_api_key_does_not_crash(monkeypatch):
     assert status["enabled"] is False
     assert result["llm_used"] is False
     assert result["success"] is False
+
+
+def test_idea_advisor_uses_llm_and_compresses_payload(monkeypatch):
+    captured = {}
+
+    def fake_call_llm(prompt, system_prompt=None):
+        captured["prompt"] = prompt
+        captured["system_prompt"] = system_prompt
+        return {"success": True, "llm_used": True, "content": "先做差异化验证。\n\n- 建议一\n\n下一步可以做什么：\n- 做一个 Demo"}
+
+    monkeypatch.setattr("backend.services.idea_advisor.safe_call_llm", fake_call_llm)
+
+    result = generate_idea_advisor_answer(
+        type(
+            "Req",
+            (),
+            {
+                "question": "我应该如何做出差异化？",
+                "idea_text": "一款治愈叙事解谜游戏",
+                "analysis_result": {
+                    "idea_profile": {"target_tags": ["Puzzle", "Story Rich"]},
+                    "opportunity_score": {"total_score": 72},
+                    "competitors": [
+                        {"name": f"Game {index}", "similarity_score": 80 - index, "price": 10 + index, "positive_rate": 0.9}
+                        for index in range(12)
+                    ],
+                    "differentiation_cards": [{"title": "玩法机制差异化", "content": "先验证 10 分钟内能感知的独特点。"}],
+                    "brief": "这是简报。",
+                    "charts": {"competitor_scores": [{"name": "Too much data"}]},
+                    "support_data": {"competitor_evidence": {"summary": {"candidate_pool_size": 99}}},
+                    "candidate_pool_size": 99,
+                    "returned_competitor_count": 10,
+                },
+                "history": [{"role": "user", "content": "先前问题"}],
+            },
+        )()
+    )
+
+    assert result["llm_used"] is True
+    assert result["fallback_used"] is False
+    assert "Game 8" not in captured["prompt"]
+    assert "Too much data" not in captured["prompt"]
+    assert "用户当前追问" in captured["prompt"]
+    assert "游戏立项顾问助手" in captured["system_prompt"]
+
+
+def test_idea_advisor_fallback_returns_cards(monkeypatch):
+    def fake_call_llm(prompt, system_prompt=None):
+        return {"success": False, "llm_used": False, "content": "", "message": "mock failure"}
+
+    monkeypatch.setattr("backend.services.idea_advisor.safe_call_llm", fake_call_llm)
+
+    result = generate_idea_advisor_answer(
+        type(
+            "Req",
+            (),
+            {
+                "question": "风险是什么？",
+                "idea_text": "一款叙事游戏",
+                "analysis_result": {
+                    "opportunity_score": {"total_score": 61},
+                    "differentiation_cards": [{"title": "竞品避让策略", "content": "避开最拥挤标签。"}],
+                },
+                "history": [],
+            },
+        )()
+    )
+
+    assert result["llm_used"] is False
+    assert result["fallback_used"] is True
+    assert "当前 LLM 未启用" in result["answer"]
+    assert "竞品避让策略" in result["answer"]
