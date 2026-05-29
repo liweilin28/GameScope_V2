@@ -63,6 +63,13 @@ class IdeaReportRequest(BaseModel):
     analysis_result: dict[str, Any]
 
 
+class IdeaAdvisorChatRequest(BaseModel):
+    question: str = Field(..., min_length=1)
+    idea_text: str = ""
+    analysis_result: dict[str, Any] = {}
+    history: list[QaHistoryMessage] = []
+
+
 def ok(data: Any = None, message: str = "") -> dict[str, Any]:
     return ApiResponse(success=True, message=message, data=data).model_dump()
 

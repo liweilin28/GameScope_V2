@@ -67,7 +67,7 @@ export async function uploadDataFile(file) {
       body: formData,
     });
     const data = await handleResponse(response);
-    showToast("CSV 上传并清洗成功。");
+    showToast("数据文件上传并清洗成功。");
     return data;
   } catch (error) {
     showToast(error.message);
@@ -99,6 +99,7 @@ export const chatQa = (payload) => apiPost("/api/qa/chat", payload);
 export const parseIdea = (idea_text) => apiPost("/api/idea/parse", { idea_text });
 export const analyzeIdea = (payload) => apiPost("/api/idea/analyze", payload);
 export const generateIdeaReport = (analysis_result) => apiPost("/api/idea/report", { analysis_result });
+export const chatIdeaAdvisor = (payload) => apiPost("/api/idea/advisor-chat", payload);
 
 export const api = {
   health: getSystemHealth,

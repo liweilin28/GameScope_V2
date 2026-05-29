@@ -1,15 +1,27 @@
-import { analyzeIdea, getLlmStatus, parseIdea } from "../api.js?v=20260528qa2";
+import { analyzeIdea, chatIdeaAdvisor, getLlmStatus, parseIdea } from "../api.js?v=20260529ui1";
 import {
   renderHistogram,
   renderHorizontalBarChart,
   renderRadarChart,
   renderScatterChart,
   showEmptyState,
-} from "../charts.js?v=20260528qa2";
-import { renderSupportDataToggle, setupSupportDataToggles } from "../supportData.js?v=20260528qa2";
-import { escapeHtml, formatNumber, renderMarkdown, renderTable, showToast } from "../utils.js?v=20260528qa2";
+} from "../charts.js?v=20260529ui1";
+import { renderSupportDataToggle, setupSupportDataToggles } from "../supportData.js?v=20260529ui1";
+import { escapeHtml, formatNumber, renderMarkdown, renderTable, showToast } from "../utils.js?v=20260529ui1";
 
 const defaultIdea = "我想做一款 2D 独立解谜叙事游戏，价格控制在 20 元以内，风格偏治愈和剧情向。";
+const advisorSuggestions = [
+  "我应该如何做出差异化？",
+  "这个方向最大的风险是什么？",
+  "小团队应该先做什么 Demo？",
+  "商店页卖点怎么包装？",
+  "这个项目应该避开什么竞品打法？",
+];
+const maxAdvisorHistory = 8;
+
+let latestIdeaAnalysis = null;
+let advisorHistory = [];
+let advisorSending = false;
 
 export function renderIdeaLab() {
   return `
@@ -30,13 +42,15 @@ export function renderIdeaLab() {
           <button class="ghost-button" id="parse-idea">解析创意</button>
           <label class="check-row"><input id="idea-only-indie" type="checkbox" checked /> 只看 Indie</label>
           <label class="inline-label">竞品数量 <input id="idea-top-n" type="number" min="1" max="30" value="10" /></label>
-          <button class="primary-button" id="run-scan">运行市场扫描</button>
         </div>
       </article>
 
       <article class="card">
         <h3>解析结果编辑区</h3>
         <div class="profile-grid" id="idea-profile-editor"></div>
+        <div class="actions-row">
+          <button class="primary-button" id="run-scan">运行市场扫描</button>
+        </div>
       </article>
 
       <div id="idea-alert"></div>
@@ -75,6 +89,37 @@ export function renderIdeaLab() {
         <h3>Project Brief</h3>
         <div id="brief-support"></div>
         <div id="project-brief" class="brief-box markdown-body">运行市场扫描后生成报告。</div>
+      </article>
+
+      <article class="card advisor-chat" id="advisor-chat-card">
+        <div class="card-title-row">
+          <div>
+            <h3>立项顾问追问</h3>
+            <p class="muted">看完报告后，你可以继续询问差异化、风险、目标玩家、MVP 验证或商店页表达。回答会基于当前创意和市场扫描结果生成。</p>
+          </div>
+        </div>
+        <div id="advisor-chat-gate" class="notice warning">
+          <strong>请先运行市场扫描，生成报告后再追问。</strong>
+        </div>
+        <div id="advisor-messages" class="advisor-messages">
+          <div class="advisor-message advisor-message-assistant">
+            <div class="advisor-message-role">立项顾问</div>
+            <div class="advisor-message-body markdown-body">
+              <p>请先运行市场扫描，生成报告后再追问。</p>
+            </div>
+          </div>
+        </div>
+        <div class="advisor-suggestions">
+          ${advisorSuggestions
+            .map((question) => `<button type="button" class="ghost-button advisor-suggestion" data-question="${escapeHtml(question)}">${escapeHtml(question)}</button>`)
+            .join("")}
+        </div>
+        <div class="advisor-input-row">
+          <textarea id="advisor-question" class="textarea" rows="3" placeholder="例如：如果我只有 3 个月和 2 人团队，最该先验证什么？"></textarea>
+          <div class="actions-row advisor-actions">
+            <button class="primary-button" id="advisor-send" disabled>发送追问</button>
+          </div>
+        </div>
       </article>
     </section>
   `;
@@ -177,6 +222,8 @@ async function runScan() {
       only_indie: document.querySelector("#idea-only-indie").checked,
     };
     const result = await analyzeIdea(payload);
+    latestIdeaAnalysis = result;
+    advisorHistory = [];
     const score = result.opportunity_score || {};
     const band = scoreBand(score.total_score);
     const dims = dimensionRows(score.dimensions);
@@ -241,15 +288,135 @@ async function runScan() {
       title: "Project Brief 报告依据",
     });
     document.querySelector("#project-brief").innerHTML = renderMarkdown(result.brief || "暂无报告。");
+    resetAdvisorChat();
+    syncAdvisorComposerState();
   } catch (error) {
     document.querySelector("#idea-alert").innerHTML =
       `<div class="notice warning"><strong>分析失败</strong><span>${escapeHtml(error.message)}</span></div>`;
     emptyChartIds.forEach((id) => showEmptyState(id, "请检查数据是否已加载，或放宽创意筛选条件。"));
+    latestIdeaAnalysis = null;
+    advisorHistory = [];
+    resetAdvisorChat();
+    syncAdvisorComposerState();
+  }
+}
+
+function hasAdvisorContext() {
+  return Boolean(latestIdeaAnalysis?.brief);
+}
+
+function syncAdvisorComposerState() {
+  const sendButton = document.querySelector("#advisor-send");
+  const textarea = document.querySelector("#advisor-question");
+  const gate = document.querySelector("#advisor-chat-gate");
+  const enabled = hasAdvisorContext();
+  if (sendButton) {
+    sendButton.disabled = !enabled || advisorSending;
+    sendButton.textContent = advisorSending ? "发送中..." : "发送追问";
+  }
+  if (textarea) {
+    textarea.disabled = !enabled || advisorSending;
+  }
+  if (gate) {
+    gate.hidden = enabled;
+  }
+  document.querySelectorAll(".advisor-suggestion").forEach((button) => {
+    button.disabled = !enabled || advisorSending;
+  });
+}
+
+function renderAdvisorMessages(messages = []) {
+  const container = document.querySelector("#advisor-messages");
+  if (!container) return;
+  const rows = messages.length
+    ? messages
+    : [
+        {
+          role: "assistant",
+          content: "请先运行市场扫描，生成报告后再追问。",
+        },
+      ];
+
+  container.innerHTML = rows
+    .map(
+      (message) => `
+        <div class="advisor-message advisor-message-${message.role === "user" ? "user" : "assistant"}">
+          <div class="advisor-message-role">${message.role === "user" ? "你" : "立项顾问"}</div>
+          <div class="advisor-message-body markdown-body">${renderMarkdown(message.content || "")}</div>
+        </div>
+      `
+    )
+    .join("");
+  container.scrollTop = container.scrollHeight;
+}
+
+function resetAdvisorChat() {
+  if (hasAdvisorContext()) {
+    renderAdvisorMessages([
+      {
+        role: "assistant",
+        content: "市场扫描已完成。你可以继续追问差异化、风险、Demo 范围、目标玩家或商店页表达，我会基于当前报告继续给建议。",
+      },
+    ]);
+  } else {
+    renderAdvisorMessages([]);
+  }
+}
+
+function getAdvisorRequestHistory() {
+  return advisorHistory.slice(-maxAdvisorHistory);
+}
+
+async function sendAdvisorQuestion(questionText = "") {
+  const questionInput = document.querySelector("#advisor-question");
+  const question = String(questionText || questionInput?.value || "").trim();
+  if (!hasAdvisorContext()) {
+    showToast("请先运行市场扫描，生成报告后再追问。");
+    return;
+  }
+  if (!question || advisorSending) {
+    return;
+  }
+
+  advisorHistory.push({ role: "user", content: question });
+  renderAdvisorMessages(advisorHistory);
+  if (questionInput) questionInput.value = "";
+  advisorSending = true;
+  syncAdvisorComposerState();
+
+  try {
+    const response = await chatIdeaAdvisor({
+      question,
+      idea_text: document.querySelector("#idea-text")?.value.trim() || "",
+      analysis_result: latestIdeaAnalysis,
+      history: getAdvisorRequestHistory(),
+    });
+    advisorHistory.push({ role: "assistant", content: response.answer || "暂无回答。" });
+    advisorHistory = advisorHistory.slice(-maxAdvisorHistory);
+    renderAdvisorMessages(advisorHistory);
+    if (response.fallback_used) {
+      showToast("当前使用规则 fallback 回答。");
+    }
+  } catch (error) {
+    advisorHistory.push({
+      role: "assistant",
+      content: "当前无法生成追问回答。你仍可以参考报告中的差异化建议、机会评分和竞品表格。",
+    });
+    advisorHistory = advisorHistory.slice(-maxAdvisorHistory);
+    renderAdvisorMessages(advisorHistory);
+  } finally {
+    advisorSending = false;
+    syncAdvisorComposerState();
   }
 }
 
 export async function initIdeaLabPage() {
+  latestIdeaAnalysis = null;
+  advisorHistory = [];
+  advisorSending = false;
   renderProfileEditor(defaultProfile());
+  resetAdvisorChat();
+  syncAdvisorComposerState();
   try {
     const status = await getLlmStatus();
     const node = document.querySelector("#idea-llm-status");
@@ -261,5 +428,20 @@ export async function initIdeaLabPage() {
   }
   document.querySelector("#parse-idea")?.addEventListener("click", parseCurrentIdea);
   document.querySelector("#run-scan")?.addEventListener("click", runScan);
+  document.querySelector("#advisor-send")?.addEventListener("click", () => sendAdvisorQuestion());
+  document.querySelector("#advisor-question")?.addEventListener("keydown", (event) => {
+    if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
+      event.preventDefault();
+      sendAdvisorQuestion();
+    }
+  });
+  document.querySelectorAll(".advisor-suggestion").forEach((button) => {
+    button.addEventListener("click", () => {
+      const question = button.dataset.question || "";
+      const textarea = document.querySelector("#advisor-question");
+      if (textarea) textarea.value = question;
+      sendAdvisorQuestion(question);
+    });
+  });
   setupSupportDataToggles(document.querySelector(".section"));
 }
