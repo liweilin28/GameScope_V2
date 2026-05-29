@@ -1,5 +1,5 @@
-import { getSubmissionReadiness } from "../api.js";
-import { escapeHtml } from "../utils.js";
+import { getSubmissionReadiness } from "../api.js?v=20260529cachefix1";
+import { escapeHtml } from "../utils.js?v=20260529cachefix1";
 
 export function renderHome() {
   return `

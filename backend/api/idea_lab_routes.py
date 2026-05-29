@@ -118,12 +118,16 @@ def _idea_support_data(
         )
 
     dimensions = score.get("dimensions", {}) if isinstance(score, dict) else {}
+    formulas = score.get("formulas", {}) if isinstance(score, dict) else {}
+    dimension_formulas = formulas.get("dimensions", {}) if isinstance(formulas, dict) else {}
     score_breakdown = [
         {
             "dimension": name,
             "score": item.get("score"),
             "basis": item.get("explanation"),
             "evidence": item.get("evidence"),
+            "formula": dimension_formulas.get(name, {}).get("formula", ""),
+            "weight": dimension_formulas.get(name, {}).get("weight", ""),
         }
         for name, item in dimensions.items()
     ]
@@ -168,7 +172,10 @@ def _idea_support_data(
                 "final_score": score.get("total_score"),
                 "sample_size": int(len(segment)),
                 "competitor_count": len(competitors),
+                "total_formula": formulas.get("total", {}).get("formula", "") if isinstance(formulas, dict) else "",
+                "dimension_weight": formulas.get("total", {}).get("weight", "") if isinstance(formulas, dict) else "",
             },
+            "formulas": formulas,
             "score_breakdown": score_breakdown,
         },
         "differentiation_evidence": {

@@ -1,4 +1,4 @@
-import { escapeHtml, renderTable } from "./utils.js";
+import { escapeHtml, renderTable } from "./utils.js?v=20260529cachefix1";
 
 let supportId = 0;
 
@@ -67,12 +67,51 @@ function scoreEvidence(scoreBreakdown = []) {
                 <strong>${escapeHtml(cleanValue(item.dimension))}</strong>
                 <span>${escapeHtml(cleanValue(item.score))}</span>
                 <p>${escapeHtml(cleanValue(item.basis))}</p>
+                ${cleanValue(item.formula) ? `<small>公式：${escapeHtml(cleanValue(item.formula))}</small>` : ""}
+                ${cleanValue(item.weight) ? `<small>权重：${escapeHtml(cleanValue(item.weight))}</small>` : ""}
                 ${cleanValue(item.evidence) ? `<small>${escapeHtml(cleanValue(item.evidence))}</small>` : ""}
               </div>
             `,
           )
           .join("")}
       </div>
+    </article>
+  `;
+}
+
+function formulaEvidence(formulas = {}) {
+  if (!formulas || typeof formulas !== "object") return "";
+  const total = formulas.total || {};
+  const dimensions = formulas.dimensions || {};
+  const rows = Object.entries(dimensions);
+  if (!cleanValue(total.formula) && !rows.length) return "";
+
+  return `
+    <article class="support-card">
+      <h4>评分公式</h4>
+      ${
+        cleanValue(total.formula)
+          ? `<div class="support-formula-total">
+              <strong>${escapeHtml(cleanValue(total.label || "机会总分"))}</strong>
+              <code>${escapeHtml(cleanValue(total.formula))}</code>
+              ${cleanValue(total.weight) ? `<small>${escapeHtml(cleanValue(total.weight))}</small>` : ""}
+            </div>`
+          : ""
+      }
+      <div class="support-formula-list">
+        ${rows
+          .map(
+            ([key, item]) => `
+              <div class="support-formula-row">
+                <strong>${escapeHtml(cleanValue(item.label || key))}</strong>
+                ${cleanValue(item.weight) ? `<span>${escapeHtml(cleanValue(item.weight))}</span>` : ""}
+                <code>${escapeHtml(cleanValue(item.formula))}</code>
+              </div>
+            `,
+          )
+          .join("")}
+      </div>
+      ${cleanValue(formulas.fallback) ? `<p class="support-formula-fallback">${escapeHtml(cleanValue(formulas.fallback))}</p>` : ""}
     </article>
   `;
 }
@@ -119,6 +158,7 @@ export function renderSupportDataPanel(supportData, options = {}) {
         <strong>${escapeHtml(options.title || supportData.title || "分析支撑数据")}</strong>
       </div>
       ${summaryMetrics(supportData.summary)}
+      ${formulaEvidence(supportData.formulas)}
       ${scoreEvidence(supportData.score_breakdown)}
       ${supportTables(supportData.tables)}
       ${

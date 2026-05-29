@@ -126,6 +126,8 @@ def test_opportunity_score_returns_total_and_dimensions():
 
     assert 0 <= score["total_score"] <= 100
     assert len(score["dimensions"]) == 5
+    assert "total_score =" in score["formulas"]["total"]["formula"]
+    assert score["formulas"]["dimensions"]["competition_pressure"]["weight"] == "20%"
     assert "真实商业决策" in score["conclusion"]
 
 

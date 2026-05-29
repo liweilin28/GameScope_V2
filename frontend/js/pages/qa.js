@@ -1,7 +1,7 @@
-import { chatQa, getLlmStatus } from "../api.js";
-import { renderEchartsOption } from "../charts.js";
-import { renderSupportDataToggle, setupSupportDataToggles } from "../supportData.js";
-import { escapeHtml, renderTableFromPayload } from "../utils.js";
+import { chatQa, getLlmStatus } from "../api.js?v=20260529cachefix1";
+import { renderEchartsOption } from "../charts.js?v=20260529cachefix1";
+import { renderSupportDataToggle, setupSupportDataToggles } from "../supportData.js?v=20260529cachefix1";
+import { escapeHtml, renderTableFromPayload } from "../utils.js?v=20260529cachefix1";
 
 const examples = [
   "Indie 游戏的价格主要集中在哪些区间？",

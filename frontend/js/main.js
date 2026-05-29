@@ -1,12 +1,12 @@
-import { api } from "./api.js";
-import { state, pages } from "./state.js";
-import { showToast, setLoading } from "./utils.js";
-import { initHomePage, renderHome } from "./pages/home.js";
-import { initDataPipelinePage, renderDataPipeline } from "./pages/dataPipeline.js";
-import { initDashboardPage, renderDashboard } from "./pages/dashboard.js";
-import { initExplorerPage, renderExplorer } from "./pages/explorer.js";
-import { initQaPage, renderQa } from "./pages/qa.js";
-import { initIdeaLabPage, renderIdeaLab } from "./pages/ideaLab.js";
+import { api } from "./api.js?v=20260529cachefix1";
+import { state, pages } from "./state.js?v=20260529cachefix1";
+import { showToast, setLoading } from "./utils.js?v=20260529cachefix1";
+import { initHomePage, renderHome } from "./pages/home.js?v=20260529cachefix1";
+import { initDataPipelinePage, renderDataPipeline } from "./pages/dataPipeline.js?v=20260529cachefix1";
+import { initDashboardPage, renderDashboard } from "./pages/dashboard.js?v=20260529cachefix1";
+import { initExplorerPage, renderExplorer } from "./pages/explorer.js?v=20260529cachefix1";
+import { initQaPage, renderQa } from "./pages/qa.js?v=20260529cachefix1";
+import { initIdeaLabPage, renderIdeaLab } from "./pages/ideaLab.js?v=20260529cachefix1";
 
 const renderers = {
   home: renderHome,

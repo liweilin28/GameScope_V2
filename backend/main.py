@@ -4,6 +4,7 @@
 """
 
 from fastapi import FastAPI
+from fastapi import Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
@@ -29,6 +30,18 @@ app.include_router(dashboard_routes.router)
 app.include_router(explorer_routes.router)
 app.include_router(qa_routes.router)
 app.include_router(idea_lab_routes.router)
+
+
+@app.middleware("http")
+async def disable_frontend_cache(request: Request, call_next):
+    response = await call_next(request)
+    if request.method == "GET" and (
+        request.url.path == "/" or request.url.path.startswith("/static/") or not request.url.path.startswith("/api/")
+    ):
+        response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate"
+        response.headers["Pragma"] = "no-cache"
+        response.headers["Expires"] = "0"
+    return response
 
 
 app.mount("/static", StaticFiles(directory=FRONTEND_DIR), name="static")

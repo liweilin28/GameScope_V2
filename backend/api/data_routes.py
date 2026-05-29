@@ -6,6 +6,7 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, File, UploadFile
+from fastapi.responses import PlainTextResponse
 
 from backend.config import SAMPLE_DATA_PATH
 from backend.models import fail, ok
@@ -138,6 +139,17 @@ def raw_data(limit: int = 0):
         },
         "原始 CSV 数据获取成功。",
     )
+
+
+@router.get("/raw-csv", response_class=PlainTextResponse)
+def raw_csv_text():
+    df, _, report = ensure_current_data()
+    if df is None:
+        return PlainTextResponse(report.get("message", "当前没有可用数据。"), status_code=404)
+    raw_df = get_current_raw_data()
+    if raw_df is None or raw_df.empty:
+        return PlainTextResponse("当前没有原始 CSV 数据。", status_code=404)
+    return PlainTextResponse(raw_df.to_csv(index=False), media_type="text/csv")
 
 
 @router.get("/cleaning-report")

@@ -7,14 +7,14 @@ import {
   getReleaseTrend,
   getReviewLogHistogram,
   getTagFrequency,
-} from "../api.js";
+} from "../api.js?v=20260529cachefix1";
 import {
   renderHistogram,
   renderHorizontalBarChart,
   renderLineChart,
   showEmptyState,
-} from "../charts.js";
-import { escapeHtml, formatNumber, formatPercent, showToast } from "../utils.js";
+} from "../charts.js?v=20260529cachefix1";
+import { escapeHtml, formatNumber, formatPercent, showToast } from "../utils.js?v=20260529cachefix1";
 
 export function renderDashboard() {
   return `

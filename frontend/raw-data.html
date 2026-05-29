@@ -4,11 +4,24 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>原始 CSV 数据｜GameScope</title>
-    <link rel="stylesheet" href="/static/css/style.css?v=20260527" />
-    <link rel="stylesheet" href="/static/css/components.css?v=20260527" />
+    <link rel="stylesheet" href="/static/css/style.css?v=20260529cachefix1" />
+    <link rel="stylesheet" href="/static/css/components.css?v=20260529cachefix1" />
     <style>
       body { padding: 28px; }
       .raw-page { display: grid; gap: 18px; }
+      .raw-csv-pre {
+        max-height: calc(100vh - 260px);
+        min-height: 360px;
+        margin: 0;
+        padding: 16px;
+        overflow: auto;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #0f172a;
+        color: #e2e8f0;
+        font: 12px/1.6 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        white-space: pre;
+      }
     </style>
   </head>
   <body>
@@ -25,6 +38,6 @@
         <div id="raw-table"></div>
       </article>
     </main>
-    <script type="module" src="/static/js/rawData.js?v=20260527"></script>
+    <script type="module" src="/static/js/rawData.js?v=20260529cachefix1"></script>
   </body>
 </html>

@@ -1,4 +1,4 @@
-import { setLoading, showToast } from "./utils.js";
+import { setLoading, showToast } from "./utils.js?v=20260529cachefix1";
 
 const API_BASE = "";
 let activeRequests = 0;
@@ -83,6 +83,31 @@ export const getSubmissionReadiness = () => apiGet("/api/system/submission-readi
 export const getDataStatus = () => apiGet("/api/data/status");
 export const getDataPreview = () => apiGet("/api/data/preview?limit=20");
 export const getRawData = (limit = 0) => apiGet(`/api/data/raw?limit=${limit}`);
+export async function getRawCsvText() {
+  beginRequest();
+  try {
+    const response = await fetch(`${API_BASE}/api/data/raw-csv`);
+    const text = await response.text();
+    if (!response.ok) {
+      throw new Error(text || "原始 CSV 数据获取失败。");
+    }
+    const contentType = response.headers.get("content-type") || "";
+    const normalized = text.trimStart().toLowerCase();
+    if (
+      contentType.includes("text/html") ||
+      normalized.startsWith("<!doctype html") ||
+      normalized.startsWith("<html")
+    ) {
+      throw new Error("当前前端连接到的服务未提供原始 CSV 接口。请重启 FastAPI 后端后重试。");
+    }
+    return text;
+  } catch (error) {
+    showToast(error.message);
+    throw error;
+  } finally {
+    endRequest();
+  }
+}
 export const getCleaningReport = () => apiGet("/api/data/cleaning-report");
 export const getDashboardMetrics = () => apiGet("/api/dashboard/metrics");
 export const getDashboardInsights = () => apiGet("/api/dashboard/insights");

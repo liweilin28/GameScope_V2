@@ -1,11 +1,11 @@
-import { getExplorerCharts } from "../api.js";
+import { getExplorerCharts } from "../api.js?v=20260529cachefix1";
 import {
   renderHorizontalBarChart,
   renderScatterChart,
   renderStackedBarChart,
   showEmptyState,
-} from "../charts.js";
-import { formatNumber, numberOrNull, readCsvList, renderTable } from "../utils.js";
+} from "../charts.js?v=20260529cachefix1";
+import { formatNumber, numberOrNull, readCsvList, renderTable } from "../utils.js?v=20260529cachefix1";
 
 export function renderExplorer() {
   return `

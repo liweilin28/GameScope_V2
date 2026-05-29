@@ -1,4 +1,4 @@
-import { state } from "./state.js";
+import { state } from "./state.js?v=20260529cachefix1";
 
 const COLORS = {
   primary: "#2563eb",

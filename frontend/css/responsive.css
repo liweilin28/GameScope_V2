@@ -74,4 +74,9 @@
     max-width: 100%;
     width: 100%;
   }
+
+  .support-score-row,
+  .support-formula-row {
+    grid-template-columns: 1fr;
+  }
 }

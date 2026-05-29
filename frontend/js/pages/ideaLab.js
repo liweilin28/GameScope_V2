@@ -1,13 +1,13 @@
-import { analyzeIdea, chatIdeaAdvisor, getLlmStatus, parseIdea } from "../api.js";
+import { analyzeIdea, chatIdeaAdvisor, getLlmStatus, parseIdea } from "../api.js?v=20260529cachefix1";
 import {
   renderHistogram,
   renderHorizontalBarChart,
   renderRadarChart,
   renderScatterChart,
   showEmptyState,
-} from "../charts.js";
-import { renderSupportDataToggle, setupSupportDataToggles } from "../supportData.js";
-import { escapeHtml, formatNumber, renderMarkdown, renderTable, showToast } from "../utils.js";
+} from "../charts.js?v=20260529cachefix1";
+import { renderSupportDataToggle, setupSupportDataToggles } from "../supportData.js?v=20260529cachefix1";
+import { escapeHtml, formatNumber, renderMarkdown, renderTable, showToast } from "../utils.js?v=20260529cachefix1";
 
 const defaultIdea = "我想做一款 2D 独立解谜叙事游戏，价格控制在 20 元以内，风格偏治愈和剧情向。";
 const advisorSuggestions = [
@@ -88,7 +88,7 @@ export function renderIdeaLab() {
       <article class="card">
         <h3>Project Brief</h3>
         <div id="brief-support"></div>
-        <div id="project-brief" class="brief-box">运行市场扫描后生成报告。</div>
+        <div id="project-brief" class="brief-box markdown-body">运行市场扫描后生成报告。</div>
       </article>
 
       <article class="card advisor-chat" id="advisor-chat-card">

@@ -54,3 +54,8 @@ def test_generic_csv_without_name_can_preview_and_return_cleaning_report():
     report_payload = report.json()
     assert report_payload["success"] is True
     assert any("缺少 name" in warning for warning in report_payload["data"]["cleaning_report"]["warnings"])
+
+    raw_csv = client.get("/api/data/raw-csv")
+    assert raw_csv.status_code == 200
+    assert raw_csv.headers["content-type"].startswith("text/csv")
+    assert raw_csv.text.startswith("id,category,value,date")

@@ -10,6 +10,43 @@ import pandas as pd
 from backend.services.utils import clamp
 
 
+OPPORTUNITY_SCORE_FORMULAS = {
+    "total": {
+        "label": "机会总分",
+        "formula": "total_score = (popularity_score + reception_score + trend_score + competition_pressure + differentiation_space) / 5",
+        "weight": "五个维度等权，每项 20%。",
+    },
+    "dimensions": {
+        "popularity_score": {
+            "label": "热度分",
+            "formula": "popularity_score = clamp((segment_avg_reviews / max(full_avg_reviews, 1)) * 55 + 25, 0, 100)",
+            "weight": "20%",
+        },
+        "reception_score": {
+            "label": "口碑分",
+            "formula": "reception_score = clamp(segment_avg_positive_rate * 100, 0, 100)",
+            "weight": "20%",
+        },
+        "trend_score": {
+            "label": "趋势分",
+            "formula": "trend_score = clamp(50 + (recent_2_year_avg_count - earlier_year_avg_count) * 8, 0, 100)，缺少年份数据时取 45",
+            "weight": "20%",
+        },
+        "competition_pressure": {
+            "label": "竞争压力机会分",
+            "formula": "competition_raw = clamp(segment_density * 220 + competitor_count * 3, 0, 100); competition_pressure = 100 - competition_raw",
+            "weight": "20%",
+        },
+        "differentiation_space": {
+            "label": "差异化空间分",
+            "formula": "differentiation_space = clamp(100 - competitor_count * 6 + (100 - competition_raw) * 0.25, 0, 100)",
+            "weight": "20%",
+        },
+    },
+    "fallback": "当细分市场或全市场数据为空时，总分和五个维度均采用保守分 40。",
+}
+
+
 def _score_band(total: float) -> str:
     if total >= 80:
         return "建议重点关注。"
@@ -34,6 +71,7 @@ def calculate_opportunity_score(segment_df: pd.DataFrame, full_df: pd.DataFrame,
         }
         return {
             "total_score": 40,
+            "formulas": OPPORTUNITY_SCORE_FORMULAS,
             "dimensions": {
                 "popularity_score": conservative,
                 "reception_score": conservative,
@@ -94,6 +132,7 @@ def calculate_opportunity_score(segment_df: pd.DataFrame, full_df: pd.DataFrame,
     total = sum(item["score"] for item in dimensions.values()) / len(dimensions)
     return {
         "total_score": round(total, 1),
+        "formulas": OPPORTUNITY_SCORE_FORMULAS,
         "dimensions": dimensions,
         "conclusion": _score_band(total) + " 该结论仅作为早期立项参考，不替代真实商业决策。",
     }

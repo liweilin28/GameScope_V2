@@ -1,5 +1,5 @@
-import { getCleaningReport, getDataPreview, getDataStatus, uploadDataFile } from "../api.js";
-import { escapeHtml, renderList, renderTable, showToast } from "../utils.js";
+import { getCleaningReport, getDataPreview, getDataStatus, uploadDataFile } from "../api.js?v=20260529cachefix1";
+import { escapeHtml, renderList, renderTable, showToast } from "../utils.js?v=20260529cachefix1";
 
 export function renderDataPipeline() {
   return `
